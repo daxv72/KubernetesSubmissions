@@ -18,6 +18,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [1.10.](https://github.com/daxv72/KubernetesSubmissions/tree/1.10/exercises/1.3)
 - [1.11.](https://github.com/daxv72/KubernetesSubmissions/tree/1.11/exercises/1.11)
 - [1.12.](https://github.com/daxv72/KubernetesSubmissions/tree/1.12/exercises/1.12)
+- [1.13.](https://github.com/daxv72/KubernetesSubmissions/tree/1.13/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -414,6 +415,21 @@ kubectl apply -f the_project/todo-app/manifests/
 ```
 
 Poi http://localhost:8081/.
+
+## Esercizio 1.13 — campo e lista
+
+La pagina del progetto, in `the_project/todo-app`, aggiunge un campo e una lista. Il campo ha `maxlength="140"`: il browser non accetta un todo più lungo. Il pulsante Send è `type="button"` e non invia nulla. I tre todo sono scritti nell'HTML.
+
+L'immagine della 1.12 resta. L'immagine del container diventa `todo-app:1.13`.
+
+```bash
+docker build -t todo-app:1.13 the_project/todo-app
+k3d image import todo-app:1.13
+kubectl apply -f the_project/todo-app/manifests/deployment.yaml
+```
+
+Poi http://localhost:8081/.
+
 
 
 

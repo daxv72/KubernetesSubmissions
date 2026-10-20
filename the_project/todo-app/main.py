@@ -1,6 +1,7 @@
-"""Todo app — exercise 1.12.
+"""Todo app — exercise 1.13.
 
-GET / is an HTML page with a picture.
+GET / is an HTML page with a picture, a todo field, and a fixed list.
+The Send button does not store the todo yet.
 GET /image serves that JPEG from a persistent volume.
 The same file is used for CACHE_SECONDS (default 10 minutes).
 The first request after the window still returns the stored file.
@@ -85,26 +86,76 @@ def html_page() -> bytes:
       color: #222;
       background: #fff;
     }
-    h1 {
-      font-size: 2.6rem;
+    h1, h2 {
       font-weight: 700;
-      margin: 0 0 1.6rem;
+      margin: 0;
+    }
+    h1 {
+      font-size: 2.4rem;
+      margin-bottom: 1.4rem;
     }
     img {
-      width: min(520px, 92vw);
-      border-radius: 16px;
+      width: min(220px, 70vw);
+      border-radius: 12px;
     }
-    p {
-      color: #777;
-      margin-top: 1.8rem;
-      font-size: 1.2rem;
+    form {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin: 2.2rem auto 0;
+      max-width: 640px;
+    }
+    input {
+      flex: 1;
+      min-width: 0;
+      font-size: 1rem;
+      padding: 0.7rem 0.8rem;
+      border: 2px solid #43a047;
+      border-radius: 4px;
+    }
+    button {
+      font-size: 1rem;
+      color: #fff;
+      background: #43a047;
+      border: 0;
+      border-radius: 4px;
+      padding: 0.7rem 1.4rem;
+      cursor: pointer;
+    }
+    h2 {
+      font-size: 1.7rem;
+      margin: 2rem 0 1rem;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 auto;
+      max-width: 720px;
+      text-align: left;
+    }
+    li {
+      background: #fff;
+      border-left: 6px solid #43a047;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      margin: 0 0 0.7rem;
+      padding: 1rem 1rem 1rem 1.1rem;
     }
   </style>
 </head>
 <body>
   <h1>Todo App</h1>
   <img src="/image" alt="Cached picture">
-  <p>DevOps with Kubernetes 2026</p>
+  <form>
+    <input type="text" name="todo" maxlength="140" placeholder="Enter a new todo (max 140 characters)" aria-label="New todo">
+    <button type="button">Send</button>
+  </form>
+  <h2>Todos</h2>
+  <ul>
+    <li>Learn Kubernetes basics</li>
+    <li>Deploy application to cluster</li>
+    <li>Configure persistent volumes</li>
+  </ul>
 </body>
 </html>
 """.encode()
