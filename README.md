@@ -8,6 +8,7 @@
 - [1.2.](https://github.com/daxv72/KubernetesSubmissions/tree/1.2/the_project)
 - [1.3.](https://github.com/daxv72/KubernetesSubmissions/tree/1.3/exercises/1.3)
 - [1.4.](https://github.com/daxv72/KubernetesSubmissions/tree/1.4/exercises/1.4)
+- [1.5.](https://github.com/daxv72/KubernetesSubmissions/tree/1.5/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -172,3 +173,17 @@ Cartella `exercises/1.4`. Il file è `exercises/1.4/manifests/deployment.yaml`. 
 kubectl apply -f exercises/1.4/manifests/deployment.yaml
 kubectl logs -l app=todo-app
 ```
+
+## Esercizio 1.5 — GET / e port-forward
+
+Il codice resta in `the_project/todo-app`. `GET /` restituisce una pagina HTML. Il Deployment imposta `PORT=3000` e l'immagine `todo-app:1.5`. Non c'è ancora un Service: l'accesso dalla macchina è `kubectl port-forward`.
+
+```bash
+docker build -t todo-app:1.5 the_project/todo-app
+k3d image import todo-app:1.5
+kubectl apply -f the_project/todo-app/manifests/deployment.yaml
+kubectl rollout status deployment/todo-app --timeout=90s
+kubectl port-forward deployment/todo-app 3003:3000
+```
+
+Aprire http://localhost:3003/. Ctrl+C chiude il forward.
