@@ -11,6 +11,7 @@
 - [1.5.](https://github.com/daxv72/KubernetesSubmissions/tree/1.5/the_project)
 - [1.6.](https://github.com/daxv72/KubernetesSubmissions/tree/1.6/the_project)
 - [1.7.](https://github.com/daxv72/KubernetesSubmissions/tree/1.7/exercises/1.3)
+- [1.8.](https://github.com/daxv72/KubernetesSubmissions/tree/1.8/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -294,4 +295,27 @@ kubectl apply -f exercises/1.3/manifests/
 ```
 
 Poi http://localhost:8081/.
+
+## Esercizio 1.8 — Ingress del todo app
+
+Il NodePort del progetto è sostituito da un ClusterIP e da un Ingress. Il file è `the_project/todo-app/manifests/ingress.yaml`. La porta del Service resta **3000**, uguale a quella del container. Sulla macchina si entra dalla **8081**.
+
+L'Ingress `log-output` usa lo stesso path `/`. Il corso dice di toglierlo, altrimenti le due app si contendono la richiesta. Il manifest in `exercises/1.3` resta nel repository: all'esercizio 1.9 i path li divideranno.
+
+```text
+browser localhost:8081
+  → load balancer, porta 80
+    → Ingress todo-app, path /
+      → Service todo-app, porta 3000
+        → container, porta 3000
+```
+
+```bash
+kubectl delete ingress log-output
+kubectl apply -f the_project/todo-app/manifests/service.yaml
+kubectl apply -f the_project/todo-app/manifests/ingress.yaml
+```
+
+Poi http://localhost:8081/ mostra la pagina Todo. La 8083 non serve più: il Service non ha più un NodePort.
+
 
