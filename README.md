@@ -17,6 +17,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [1.9.](https://github.com/daxv72/KubernetesSubmissions/tree/1.9/exercises/1.9)
 - [1.10.](https://github.com/daxv72/KubernetesSubmissions/tree/1.10/exercises/1.3)
 - [1.11.](https://github.com/daxv72/KubernetesSubmissions/tree/1.11/exercises/1.11)
+- [1.12.](https://github.com/daxv72/KubernetesSubmissions/tree/1.12/exercises/1.12)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -394,6 +395,26 @@ kubectl apply -f exercises/1.9/manifests/deployment.yaml
 ```
 
 Tre richieste a http://localhost:8081/pingpong, poi http://localhost:8081/ mostra una riga `timestamp: uuid.` e `Ping / Pongs: 3`. Il numero resta se il Pod viene ricreato.
+
+## Esercizio 1.12 — immagine del progetto
+
+La pagina del todo app mostra un'immagine presa da [Lorem Picsum](https://picsum.photos/1200). Il file sta su un volume persistente, in `exercises/1.12`, montato dal Deployment in `the_project/todo-app`.
+
+Per 10 minuti ogni richiesta riceve lo stesso file. La prima richiesta dopo quei 10 minuti può ancora ricevere l'immagine vecchia. La richiesta successiva ne scarica una nuova. Se il container si spegne, il file resta sul nodo: il Pod nuovo non richiama Picsum finché l'immagine è ancora valida.
+
+L'Ingress di Log output usa anch'esso `/`. Va tolto dal cluster, altrimenti la 8081 non mostra il progetto.
+
+```bash
+docker exec k3d-k3s-default-agent-0 mkdir -p /tmp/todo-images
+kubectl apply -f exercises/1.12/
+docker build -t todo-app:1.12 the_project/todo-app
+k3d image import todo-app:1.12
+kubectl delete ingress log-output --ignore-not-found
+kubectl apply -f the_project/todo-app/manifests/
+```
+
+Poi http://localhost:8081/.
+
 
 
 
