@@ -6,6 +6,8 @@
 
 - [1.1.](https://github.com/daxv72/KubernetesSubmissions/tree/1.1/exercises/1.1)
 - [1.2.](https://github.com/daxv72/KubernetesSubmissions/tree/1.2/the_project)
+- [1.3.](https://github.com/daxv72/KubernetesSubmissions/tree/1.3/exercises/1.3)
+- [1.4.](https://github.com/daxv72/KubernetesSubmissions/tree/1.4/exercises/1.4)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -147,5 +149,26 @@ docker build -t todo-app:1.2 the_project/todo-app
 k3d image import todo-app:1.2
 kubectl apply -f the_project/todo-app/manifests/deployment.yaml
 kubectl rollout status deployment/todo-app --timeout=90s
+kubectl logs -l app=todo-app
+```
+
+## Esercizio 1.3 — Log output, manifest dichiarativo
+
+Cartella `exercises/1.3`. Il Deployment sta in `exercises/1.3/manifests/deployment.yaml`. L'immagine è `log-output:1.3`, stesso programma della 1.1. Il riavvio crea un Pod nuovo, quindi la stringa casuale cambia.
+
+```bash
+docker build -t log-output:1.3 exercises/1.3
+k3d image import log-output:1.3
+kubectl apply -f exercises/1.3/manifests/deployment.yaml
+kubectl rollout restart deployment/log-output
+kubectl logs -l app=log-output -f
+```
+
+## Esercizio 1.4 — todo app, deployment.yaml
+
+Cartella `exercises/1.4`. Il file è `exercises/1.4/manifests/deployment.yaml`. Il codice resta in `the_project/todo-app`. Nessun Service.
+
+```bash
+kubectl apply -f exercises/1.4/manifests/deployment.yaml
 kubectl logs -l app=todo-app
 ```
