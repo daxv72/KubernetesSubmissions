@@ -9,6 +9,7 @@
 - [1.3.](https://github.com/daxv72/KubernetesSubmissions/tree/1.3/exercises/1.3)
 - [1.4.](https://github.com/daxv72/KubernetesSubmissions/tree/1.4/exercises/1.4)
 - [1.5.](https://github.com/daxv72/KubernetesSubmissions/tree/1.5/the_project)
+- [1.6.](https://github.com/daxv72/KubernetesSubmissions/tree/1.6/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -187,3 +188,83 @@ kubectl port-forward deployment/todo-app 3003:3000
 ```
 
 Aprire http://localhost:3003/. Ctrl+C chiude il forward.
+
+## Network — dall'app al browser
+
+Il container di `hashresponse` ascolta sulla porta **3000**. Questa è `targetPort`. Non è una porta della macchina e non è la 2345.
+
+Un Service sceglie i Pod con `selector: app: hashresponse` e inoltra il traffico a quella 3000. Se ne applica uno solo alla volta, sempre con il nome `hashresponse-svc`.
+
+### NodePort, quello che apre http://localhost:8082/
+
+File: `material-example/app2/manifests/nodeport_service.yaml`.
+
+| Campo | Porta | Chi la usa |
+| --- | --- | --- |
+| `targetPort` | 3000 | il processo nel container |
+| `port` | 1234 | gli altri Pod, via `hashresponse-svc:1234` |
+| `nodePort` | 30080 | ogni nodo del cluster |
+
+k3d è stato creato con `--port 8082:30080@agent:0`. Con k3d 5.9 la pubblicazione sta sul load balancer, che inoltra a `agent-0:30080`.
+
+```text
+browser localhost:8082
+  → load balancer, porta 30080
+    → nodo agent-0, NodePort 30080
+      → Service, porta interna 1234
+        → Pod, porta 3000
+```
+
+Il Pod può stare su un altro nodo, per esempio `agent-1`. Il NodePort è aperto su tutti i nodi e kube-proxy raggiunge il Pod lo stesso.
+
+Il file `material-example/app2/manifests/service.yaml` non è questo passaggio. È il ClusterIP del passaggio successivo. Applicarlo non apre la 30080, quindi `localhost:8082` non risponde.
+
+```bash
+kubectl apply -f material-example/app2/manifests/deployment.yaml
+kubectl apply -f material-example/app2/manifests/nodeport_service.yaml
+```
+
+Poi http://localhost:8082/.
+
+### ClusterIP, quello che arriva con Ingress
+
+Lo stesso nome `hashresponse-svc` viene sostituito. `type: ClusterIP`, `port: 2345`, `targetPort: 3000`. La 2345 esiste solo dentro il cluster. Il load balancer non la pubblica.
+
+Ingress (porta 80 del cluster, sulla macchina la 8081) manda le richieste a `hashresponse-svc:2345`, e il Service le porta al container sulla 3000.
+
+```text
+browser localhost:8081
+  → load balancer, porta 80
+    → Ingress
+      → Service, porta 2345
+        → Pod, porta 3000
+```
+
+## Esercizio 1.6 — NodePort del todo app
+
+Il Service sta in `the_project/todo-app/manifests/service.yaml`. La 30080 è già di `hashresponse` (`localhost:8082`), quindi il progetto usa la **30081**, pubblicata sulla **8083**.
+
+| Campo | Porta |
+| --- | --- |
+| `targetPort` | 3000, il container |
+| `port` | 3000, gli altri Pod via `todo-app:3000` |
+| `nodePort` | 30081, ogni nodo |
+
+```text
+browser localhost:8083
+  → load balancer, porta 30081
+    → NodePort 30081
+      → Service, porta 3000
+        → container, porta 3000
+```
+
+Il cluster ricreato non ha più il Deployment. L'immagine va reimportata.
+
+```bash
+k3d image import todo-app:1.5
+k3d cluster edit k3s-default --port-add 8083:30081@agent:0
+kubectl apply -f the_project/todo-app/manifests/deployment.yaml
+kubectl apply -f the_project/todo-app/manifests/service.yaml
+```
+
+Poi http://localhost:8083/.
