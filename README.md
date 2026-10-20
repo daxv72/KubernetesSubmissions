@@ -10,6 +10,7 @@
 - [1.4.](https://github.com/daxv72/KubernetesSubmissions/tree/1.4/exercises/1.4)
 - [1.5.](https://github.com/daxv72/KubernetesSubmissions/tree/1.5/the_project)
 - [1.6.](https://github.com/daxv72/KubernetesSubmissions/tree/1.6/the_project)
+- [1.7.](https://github.com/daxv72/KubernetesSubmissions/tree/1.7/exercises/1.3)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -268,3 +269,29 @@ kubectl apply -f the_project/todo-app/manifests/service.yaml
 ```
 
 Poi http://localhost:8083/.
+
+## Esercizio 1.7 — Ingress di Log output
+
+L'app è `exercises/1.3`. All'avvio genera la stringa e la tiene in memoria. Ogni 5 secondi la stampa nei log. `GET /` restituisce il timestamp corrente e la stessa stringa.
+
+Il Service è ClusterIP: porta **2345** verso il container sulla **3000**. L'Ingress manda `/` a quel Service. Sulla macchina la porta è la **8081**, già pubblicata dal load balancer sulla porta 80.
+
+```text
+browser localhost:8081
+  → load balancer, porta 80
+    → Ingress log-output, path /
+      → Service log-output, porta 2345
+        → container, porta 3000
+```
+
+`dwk-material-ingress` dell'esempio usa anch'esso `/`. Va tolto dal cluster, altrimenti i due Ingress si contendono la stessa richiesta. Il file in `material-example` non si tocca.
+
+```bash
+kubectl delete ingress dwk-material-ingress
+docker build -t log-output:1.7 exercises/1.3
+k3d image import log-output:1.7
+kubectl apply -f exercises/1.3/manifests/
+```
+
+Poi http://localhost:8081/.
+
