@@ -5,6 +5,7 @@
 ### Chapter 2
 
 - [1.1.](https://github.com/daxv72/KubernetesSubmissions/tree/1.1/exercises/1.1)
+- [1.2.](https://github.com/daxv72/KubernetesSubmissions/tree/1.2/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -135,4 +136,16 @@ k3d image import log-output:1.1
 kubectl apply -f exercises/1.1/manifests/deployment.yaml
 kubectl rollout status deployment/log-output --timeout=90s
 kubectl logs -l app=log-output -f
+```
+
+## Esercizio 1.2 — todo app
+
+App in `the_project/todo-app`, come nell'esempio del corso. All'avvio stampa `Server started in port NNNN`. La porta arriva dalla variabile `PORT` (nel Deployment è `3000`). Non c'è ancora un Service: il corso lo aggiunge con il networking.
+
+```bash
+docker build -t todo-app:1.2 the_project/todo-app
+k3d image import todo-app:1.2
+kubectl apply -f the_project/todo-app/manifests/deployment.yaml
+kubectl rollout status deployment/todo-app --timeout=90s
+kubectl logs -l app=todo-app
 ```
