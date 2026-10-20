@@ -14,16 +14,43 @@ spec:
       labels:
         app: log-output
     spec:
+      # emptyDir is created with the Pod. fsGroup lets USER nobody write it.
+      securityContext:
+        fsGroup: 65534
+      volumes:
+        - name: shared-log
+          emptyDir: {}
       containers:
-        - name: log-output
-          image: log-output:1.7
+        - name: log-writer
+          image: log-writer:1.10
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_PATH
+              value: /usr/src/app/files/log.txt
+          volumeMounts:
+            - name: shared-log
+              mountPath: /usr/src/app/files
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+        - name: log-reader
+          image: log-reader:1.10
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
               value: "3000"
+            - name: LOG_PATH
+              value: /usr/src/app/files/log.txt
           ports:
             - name: http
               containerPort: 3000
+          volumeMounts:
+            - name: shared-log
+              mountPath: /usr/src/app/files
           resources:
             requests:
               cpu: 10m

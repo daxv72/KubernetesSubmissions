@@ -1,5 +1,7 @@
 # DevOps with Kubernetes
 
+Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA.md](TEORIA.md).
+
 ## Exercises
 
 ### Chapter 2
@@ -13,6 +15,7 @@
 - [1.7.](https://github.com/daxv72/KubernetesSubmissions/tree/1.7/exercises/1.3)
 - [1.8.](https://github.com/daxv72/KubernetesSubmissions/tree/1.8/the_project)
 - [1.9.](https://github.com/daxv72/KubernetesSubmissions/tree/1.9/exercises/1.9)
+- [1.10.](https://github.com/daxv72/KubernetesSubmissions/tree/1.10/exercises/1.3)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -60,6 +63,7 @@ Per ricrearlo e riusarlo:
 
 ```bash
 k3d cluster create -a 2
+---> k3d cluster create --port 8082:30080@agent:0 -p 8081:80@loadbalancer --agents 2
 kubectl config use-context k3d-k3s-default
 kubectl cluster-info
 ```
@@ -349,5 +353,24 @@ kubectl apply -f exercises/1.3/manifests/ingress.yaml
 ```
 
 Poi http://localhost:8081/pingpong e http://localhost:8081/.
+
+## Esercizio 1.10 — due container, un file
+
+Log output non è più un solo processo. Nel Pod `log-output` ci sono due container. Condividono un volume [emptyDir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) montato su `/usr/src/app/files`. Il volume nasce con il Pod e sparisce con il Pod.
+
+`log-writer` genera la stringa all'avvio e, ogni 5 secondi, accoda una riga `timestamp: string` in `log.txt`. `log-reader` legge quel file e lo restituisce su `GET /`. Il Service e l'Ingress non cambiano: `/` arriva ancora a `log-output:2345`, e ad ascoltare è solo `log-reader`.
+
+Due container nello stesso Pod: `kubectl logs` senza `-c` non sa quale stdout prendere. La pagina del comando è quella indicata dal corso: [kubectl logs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/).
+
+```bash
+docker build -t log-writer:1.10 exercises/1.3/writer
+docker build -t log-reader:1.10 exercises/1.3/reader
+k3d image import log-writer:1.10 log-reader:1.10
+kubectl apply -f exercises/1.3/manifests/
+kubectl logs -l app=log-output -c log-writer --tail=2
+kubectl logs -l app=log-output -c log-reader --tail=2
+```
+
+Poi http://localhost:8081/. Un reload dopo qualche secondo mostra una riga in più. La stringa resta la stessa finché il Pod non viene ricreato.
 
 
