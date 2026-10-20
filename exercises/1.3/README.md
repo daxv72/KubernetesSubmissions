@@ -4,6 +4,8 @@ Exercise 1.7. On startup the process generates a random string, keeps it in memo
 
 Ingress publishes the app on host port `8081`. The Service is ClusterIP: port `2345` forwards to container port `3000`.
 
+Exercise 1.9 shares this Ingress with ping-pong (`exercises/1.9`). `/` stays here. `/pingpong` goes to Service `ping-pong` port `3000`. The two ingress files are the same object.
+
 ## Kubernetes
 
 From the repository root:

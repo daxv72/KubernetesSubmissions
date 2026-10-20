@@ -6,6 +6,14 @@ spec:
   rules:
     - http:
         paths:
+          # Longer path wins over "/". The ping-pong app receives /pingpong as-is.
+          - path: /pingpong
+            pathType: Prefix
+            backend:
+              service:
+                name: ping-pong
+                port:
+                  number: 3000
           - path: /
             pathType: Prefix
             backend:

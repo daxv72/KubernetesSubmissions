@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: log-output
+spec:
+  rules:
+    - http:
+        paths:
+          # Longer path wins over "/". The app receives /pingpong as-is.
+          - path: /pingpong
+            pathType: Prefix
+            backend:
+              service:
+                name: ping-pong
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: log-output
+                port:
+                  number: 2345

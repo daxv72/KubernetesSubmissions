@@ -12,6 +12,7 @@
 - [1.6.](https://github.com/daxv72/KubernetesSubmissions/tree/1.6/the_project)
 - [1.7.](https://github.com/daxv72/KubernetesSubmissions/tree/1.7/exercises/1.3)
 - [1.8.](https://github.com/daxv72/KubernetesSubmissions/tree/1.8/the_project)
+- [1.9.](https://github.com/daxv72/KubernetesSubmissions/tree/1.9/exercises/1.9)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -317,5 +318,36 @@ kubectl apply -f the_project/todo-app/manifests/ingress.yaml
 ```
 
 Poi http://localhost:8081/ mostra la pagina Todo. La 8083 non serve più: il Service non ha più un NodePort.
+
+## Esercizio 1.9 — ping-pong
+
+La seconda app è `exercises/1.9`. `GET /pingpong` risponde `pong 0` alla prima richiesta, poi `pong 1`, `pong 2`, e così via. Il contatore sta in memoria: un riavvio del Pod lo riporta a 0.
+
+Condivide l'Ingress `log-output` con Log output. Il path più lungo vince, quindi `/pingpong` non finisce sull'app che ha `/`.
+
+```text
+browser localhost:8081/pingpong
+  → load balancer, porta 80
+    → Ingress log-output, path /pingpong
+      → Service ping-pong, porta 3000
+        → container, porta 3000
+
+browser localhost:8081/
+  → lo stesso Ingress, path /
+    → Service log-output, porta 2345
+      → container, porta 3000
+```
+
+L'Ingress `todo-app` usa ancora `/`. Va tolto dal cluster, altrimenti si contende la richiesta con Log output. Il file in `the_project` resta nel repository.
+
+```bash
+docker build -t ping-pong:1.9 exercises/1.9
+k3d image import ping-pong:1.9
+kubectl delete ingress todo-app --ignore-not-found
+kubectl apply -f exercises/1.9/manifests/
+kubectl apply -f exercises/1.3/manifests/ingress.yaml
+```
+
+Poi http://localhost:8081/pingpong e http://localhost:8081/.
 
 
