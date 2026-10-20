@@ -14,16 +14,27 @@ spec:
       labels:
         app: ping-pong
     spec:
+      securityContext:
+        fsGroup: 65534
+      volumes:
+        - name: shared-log
+          persistentVolumeClaim:
+            claimName: shared-claim
       containers:
         - name: ping-pong
-          image: ping-pong:1.9
+          image: ping-pong:1.11
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
               value: "3000"
+            - name: PINGS_PATH
+              value: /usr/src/app/files/pings.txt
           ports:
             - name: http
               containerPort: 3000
+          volumeMounts:
+            - name: shared-log
+              mountPath: /usr/src/app/files
           resources:
             requests:
               cpu: 10m

@@ -1,27 +1,44 @@
-"""Ping-pong — exercise 1.9.
+"""Ping-pong — exercise 1.11.
 
-GET /pingpong returns "pong N" and then increments an in-memory counter.
-The counter starts at 0 and resets when the process restarts.
+GET /pingpong returns "pong N" and then increments the counter.
+The counter is a file on the shared persistent volume, so it survives a restart.
 """
 
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = int(os.environ.get("PORT", "3000"))
+PINGS_PATH = os.environ.get("PINGS_PATH", "/usr/src/app/files/pings.txt")
 
-# In memory only. A restart sets it back to 0.
-counter = 0
+
+def read_count() -> int:
+    try:
+        raw = open(PINGS_PATH, encoding="utf-8").read().strip()
+    except FileNotFoundError:
+        return 0
+    try:
+        return int(raw)
+    except ValueError:
+        return 0
+
+
+def write_count(count: int) -> None:
+    os.makedirs(os.path.dirname(PINGS_PATH), exist_ok=True)
+    temporary = PINGS_PATH + ".tmp"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        handle.write(f"{count}\n")
+    os.replace(temporary, PINGS_PATH)
 
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
-        global counter
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
         if path != "/pingpong":
             self.send_error(404)
             return
-        body = f"pong {counter}\n".encode()
-        counter += 1
+        count = read_count()
+        body = f"pong {count}\n".encode()
+        write_count(count + 1)
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))

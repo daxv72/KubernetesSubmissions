@@ -1,8 +1,8 @@
-"""Log writer — exercise 1.10.
+"""Log writer — exercise 1.11.
 
 On startup, generate a random string.
 Every 5 seconds, append one line (UTC timestamp and that string) to a file.
-The reader container serves that file. The file lives on a shared emptyDir.
+The file lives on the shared persistent volume.
 """
 
 import os
@@ -26,7 +26,7 @@ def main() -> None:
     os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
     print(f"Writing {LOG_PATH}", flush=True)
     while True:
-        line = f"{timestamp()}: {random_string}"
+        line = f"{timestamp()}: {random_string}."
         with open(LOG_PATH, "a", encoding="utf-8") as handle:
             handle.write(line + "\n")
         print(line, flush=True)

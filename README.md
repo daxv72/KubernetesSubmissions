@@ -16,6 +16,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [1.8.](https://github.com/daxv72/KubernetesSubmissions/tree/1.8/the_project)
 - [1.9.](https://github.com/daxv72/KubernetesSubmissions/tree/1.9/exercises/1.9)
 - [1.10.](https://github.com/daxv72/KubernetesSubmissions/tree/1.10/exercises/1.3)
+- [1.11.](https://github.com/daxv72/KubernetesSubmissions/tree/1.11/exercises/1.11)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -372,5 +373,27 @@ kubectl logs -l app=log-output -c log-reader --tail=2
 ```
 
 Poi http://localhost:8081/. Un reload dopo qualche secondo mostra una riga in più. La stringa resta la stessa finché il Pod non viene ricreato.
+
+## Esercizio 1.11 — volume persistente
+
+Il conteggio di ping-pong e il file di log stanno su un [PersistentVolume](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) locale, non più su un emptyDir. I file sono in `exercises/1.11`: il volume e la richiesta di spazio. Stanno fuori dalle due app: un PersistentVolume è del cluster, non di un Deployment.
+
+Il disco è la directory `/tmp/kube` sul nodo `k3d-k3s-default-agent-0`. Va creata prima. `ReadWriteOnce` ammette più Pod sullo stesso nodo. Lo scheduler mette entrambi su quel nodo perché il volume è locale.
+
+`pings.txt` contiene il numero di richieste a `/pingpong`. `GET /` di Log output mostra l'ultima riga del log e quel numero.
+
+```bash
+docker exec k3d-k3s-default-agent-0 mkdir -p /tmp/kube
+kubectl apply -f exercises/1.11/
+docker build -t log-writer:1.11 exercises/1.3/writer
+docker build -t log-reader:1.11 exercises/1.3/reader
+docker build -t ping-pong:1.11 exercises/1.9
+k3d image import log-writer:1.11 log-reader:1.11 ping-pong:1.11
+kubectl apply -f exercises/1.3/manifests/deployment.yaml
+kubectl apply -f exercises/1.9/manifests/deployment.yaml
+```
+
+Tre richieste a http://localhost:8081/pingpong, poi http://localhost:8081/ mostra una riga `timestamp: uuid.` e `Ping / Pongs: 3`. Il numero resta se il Pod viene ricreato.
+
 
 
