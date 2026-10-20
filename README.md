@@ -4,7 +4,7 @@
 
 ### Chapter 2
 
-- [1.1.](https://github.com/daxv72/devops-with-kubernetes/tree/1.1/exercises/1.1)
+- [1.1.](https://github.com/daxv72/KubernetesSubmissions/tree/1.1/exercises/1.1)
 
 ## Comandi usati per l'esercizio 1.1
 
