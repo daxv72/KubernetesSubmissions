@@ -27,6 +27,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.3.](https://github.com/daxv72/KubernetesSubmissions/tree/2.3/exercises/2.3)
 - [2.4.](https://github.com/daxv72/KubernetesSubmissions/tree/2.4/the_project)
 - [2.5.](https://github.com/daxv72/KubernetesSubmissions/tree/2.5/exercises/2.5)
+- [2.6.](https://github.com/daxv72/KubernetesSubmissions/tree/2.6/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -550,6 +551,26 @@ kubectl apply -f exercises/1.3/manifests/
 ```
 
 Poi http://localhost:8081/.
+
+## Esercizio 2.6 — configurazione fuori dal codice
+
+Todo-app e todo-backend non hanno porte, URL o altri parametri nel sorgente. Ogni valore arriva da una variabile d'ambiente. Le variabili stanno nei ConfigMap `todo-app-config` e `todo-backend-config`, nel namespace `project`. Il Deployment le carica con `envFrom`.
+
+Se manca una variabile, il processo si ferma all'avvio.
+
+```bash
+docker build -t todo-backend:2.6 the_project/todo-backend
+docker build -t todo-app:2.6 the_project/todo-app
+k3d image import todo-backend:2.6 todo-app:2.6
+kubectl apply -f the_project/namespace.yaml
+kubectl apply -f exercises/1.12/
+kubectl apply -f the_project/todo-backend/manifests/
+kubectl apply -f the_project/todo-app/manifests/
+kubectl delete ingress log-output -n exercises --ignore-not-found
+```
+
+Poi http://localhost:8081/.
+
 
 
 

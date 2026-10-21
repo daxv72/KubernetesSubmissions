@@ -1,11 +1,7 @@
-"""Todo app — exercise 2.2.
+"""Todo app — exercise 2.6.
 
 GET / is an HTML page with a picture and the todo list from todo-backend.
-The form posts to /todos on that service.
-GET /image serves that JPEG from a persistent volume.
-The same file is used for CACHE_SECONDS (default 10 minutes).
-The first request after the window still returns the stored file.
-The request after that downloads a new picture from Lorem Picsum.
+Ports, URLs, and the other settings come from environment variables.
 """
 
 import html
@@ -16,14 +12,27 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-PORT = int(os.environ.get("PORT", "8080"))
-IMAGE_DIR = os.environ.get("IMAGE_DIR", "/usr/src/app/files")
-CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "600"))
-PICSUM_URL = os.environ.get("PICSUM_URL", "https://picsum.photos/1200")
-TODO_BACKEND_URL = os.environ.get("TODO_BACKEND_URL", "http://todo-backend:2345/todos")
 
-IMAGE_PATH = os.path.join(IMAGE_DIR, "image.jpg")
-META_PATH = os.path.join(IMAGE_DIR, "meta.txt")
+def required(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise SystemExit(f"Missing environment variable {name}")
+    return value
+
+
+PORT = int(required("PORT"))
+BIND_ADDRESS = required("BIND_ADDRESS")
+IMAGE_DIR = required("IMAGE_DIR")
+CACHE_SECONDS = int(required("CACHE_SECONDS"))
+PICSUM_URL = required("PICSUM_URL")
+TODO_BACKEND_URL = required("TODO_BACKEND_URL")
+IMAGE_ROUTE = required("IMAGE_ROUTE")
+FORM_ACTION = required("FORM_ACTION")
+TODO_FIELD = required("TODO_FIELD")
+MAX_LENGTH = required("MAX_LENGTH")
+
+IMAGE_PATH = os.path.join(IMAGE_DIR, required("IMAGE_FILE"))
+META_PATH = os.path.join(IMAGE_DIR, required("META_FILE"))
 
 
 def read_meta() -> tuple[float, bool] | None:
@@ -162,9 +171,9 @@ def html_page(todos: list[str]) -> bytes:
 </head>
 <body>
   <h1>Todo App</h1>
-  <img src="/image" alt="Cached picture">
-  <form action="/todos" method="post">
-    <input type="text" name="todo" maxlength="140" required placeholder="Enter a new todo (max 140 characters)" aria-label="New todo">
+  <img src="__IMAGE_ROUTE__" alt="Cached picture">
+  <form action="__FORM_ACTION__" method="post">
+    <input type="text" name="__TODO_FIELD__" maxlength="__MAX_LENGTH__" required placeholder="Enter a new todo (max __MAX_LENGTH__ characters)" aria-label="New todo">
     <button type="submit">Send</button>
   </form>
   <h2>Todos</h2>
@@ -173,7 +182,13 @@ __TODO_ITEMS__
   </ul>
 </body>
 </html>
-""".replace("__TODO_ITEMS__", items).encode()
+""".replace("__TODO_ITEMS__", items).replace(
+        "__IMAGE_ROUTE__", html.escape(IMAGE_ROUTE, quote=True)
+    ).replace(
+        "__FORM_ACTION__", html.escape(FORM_ACTION, quote=True)
+    ).replace("__TODO_FIELD__", html.escape(TODO_FIELD, quote=True)).replace(
+        "__MAX_LENGTH__", html.escape(MAX_LENGTH, quote=True)
+    ).encode()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -182,7 +197,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/":
             body = html_page(fetch_todos())
             content_type = "text/html; charset=utf-8"
-        elif path == "/image":
+        elif path == IMAGE_ROUTE:
             ensure_image()
             with open(IMAGE_PATH, "rb") as handle:
                 body = handle.read()
@@ -202,7 +217,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     print(f"Server started in port {PORT}", flush=True)
-    HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    HTTPServer((BIND_ADDRESS, PORT), Handler).serve_forever()
 
 
 if __name__ == "__main__":
