@@ -25,6 +25,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.1.](https://github.com/daxv72/KubernetesSubmissions/tree/2.1/exercises/2.1)
 - [2.2.](https://github.com/daxv72/KubernetesSubmissions/tree/2.2/the_project)
 - [2.3.](https://github.com/daxv72/KubernetesSubmissions/tree/2.3/exercises/2.3)
+- [2.4.](https://github.com/daxv72/KubernetesSubmissions/tree/2.4/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -512,6 +513,21 @@ kubectl apply -f the_project/todo-app/manifests/
 ```
 
 `kubectl get deploy -n exercises` mostra log-output e ping-pong. `kubectl get deploy -n project` mostra todo-app e todo-backend.
+
+## Esercizio 2.4 — namespace del progetto
+
+Il namespace del progetto si chiama `project`. Il file è `the_project/namespace.yaml`. Deployment, Service, Ingress e il claim dell'immagine hanno `namespace: project`.
+
+Gli esercizi futuri del progetto si applicano in quel namespace. Log output e ping-pong restano in `exercises`.
+
+```bash
+kubectl apply -f the_project/namespace.yaml
+kubectl apply -f exercises/1.12/
+kubectl apply -f the_project/todo-backend/manifests/
+kubectl apply -f the_project/todo-app/manifests/
+kubectl get deploy,svc,ingress,pvc -n project
+```
+
 
 
 
