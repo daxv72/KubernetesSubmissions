@@ -24,6 +24,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 
 - [2.1.](https://github.com/daxv72/KubernetesSubmissions/tree/2.1/exercises/2.1)
 - [2.2.](https://github.com/daxv72/KubernetesSubmissions/tree/2.2/the_project)
+- [2.3.](https://github.com/daxv72/KubernetesSubmissions/tree/2.3/exercises/2.3)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -486,6 +487,32 @@ kubectl apply -f the_project/todo-app/manifests/
 ```
 
 Poi http://localhost:8081/. Il form aggiunge un todo e la pagina lo mostra.
+
+## Esercizio 2.3 — namespace
+
+Log output e ping-pong stanno nel namespace `exercises`. Il progetto sta nel namespace `project`. Gli esempi del corso possono restare in `default`.
+
+Dentro lo stesso namespace il nome corto del Service basta ancora: `http://ping-pong:3000/pings` e `http://todo-backend:2345/todos`. Per chiamare un Service da un altro namespace serve il nome completo, per esempio `ping-pong.exercises.svc.cluster.local`.
+
+Il PersistentVolume non ha namespace. Il claim dell'immagine, `todo-image-claim`, sta in `project`. Se il volume era già bound in `default`, dopo lo spostamento resta `Released`: va cancellato e ricreato.
+
+I due Ingress usano entrambi il percorso `/`. Su http://localhost:8081/ ne risponde uno solo.
+
+```bash
+kubectl delete deployment,service log-output ping-pong todo-app todo-backend -n default --ignore-not-found
+kubectl delete ingress log-output todo-app -n default --ignore-not-found
+kubectl delete pvc todo-image-claim -n default --ignore-not-found
+kubectl delete pv todo-image-pv --ignore-not-found
+kubectl apply -f exercises/2.3/
+kubectl apply -f exercises/1.12/
+kubectl apply -f exercises/1.9/manifests/
+kubectl apply -f exercises/1.3/manifests/
+kubectl apply -f the_project/todo-backend/manifests/
+kubectl apply -f the_project/todo-app/manifests/
+```
+
+`kubectl get deploy -n exercises` mostra log-output e ping-pong. `kubectl get deploy -n project` mostra todo-app e todo-backend.
+
 
 
 

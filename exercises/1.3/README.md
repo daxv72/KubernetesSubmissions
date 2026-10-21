@@ -9,8 +9,8 @@ The Service is still ClusterIP port `2345` to container port `3000` on `log-read
 With two containers, logs need `-c`:
 
 ```bash
-kubectl logs -l app=log-output -c log-writer --tail=2
-kubectl logs -l app=log-output -c log-reader --tail=2
+kubectl logs -n exercises -l app=log-output -c log-writer --tail=2
+kubectl logs -n exercises -l app=log-output -c log-reader --tail=2
 ```
 
 ## Kubernetes
