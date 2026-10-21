@@ -1,8 +1,8 @@
-"""Log writer — exercise 1.11.
+"""Log writer — exercise 1.10.
 
 On startup, generate a random string.
 Every 5 seconds, append one line (UTC timestamp and that string) to a file.
-The file lives on the shared persistent volume.
+The file is an emptyDir shared with log-reader in the same Pod.
 """
 
 import os

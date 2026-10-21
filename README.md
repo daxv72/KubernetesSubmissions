@@ -20,6 +20,10 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [1.12.](https://github.com/daxv72/KubernetesSubmissions/tree/1.12/exercises/1.12)
 - [1.13.](https://github.com/daxv72/KubernetesSubmissions/tree/1.13/the_project)
 
+### Networking between pods
+
+- [2.1.](https://github.com/daxv72/KubernetesSubmissions/tree/2.1/exercises/2.1)
+
 ## Comandi usati per l'esercizio 1.1
 
 App **Log output** in `exercises/1.1`. All'avvio genera una stringa casuale, la tiene in memoria e la stampa ogni 5 secondi con un timestamp UTC.
@@ -429,6 +433,29 @@ kubectl apply -f the_project/todo-app/manifests/deployment.yaml
 ```
 
 Poi http://localhost:8081/.
+
+## Esercizio 2.1 — HTTP tra i Pod
+
+Log output e ping-pong non condividono più un volume. Il conteggio sta in memoria dentro ping-pong.
+
+`GET /pingpong` risponde `pong N` e poi incrementa. `GET /pings` restituisce il conteggio senza incrementarlo. Log output, a ogni richiesta su `/`, chiama il Service:
+
+`http://ping-pong:3000/pings`
+
+`ping-pong` è il nome DNS del Service, nello stesso namespace. La porta `3000` è la porta del Service, che inoltra alla porta del container.
+
+I due container di Log output condividono ancora un `emptyDir` per `log.txt`. Quel volume non è montato da ping-pong.
+
+```bash
+docker build -t log-reader:2.1 exercises/1.3/reader
+docker build -t ping-pong:2.1 exercises/1.9
+k3d image import log-reader:2.1 ping-pong:2.1
+kubectl apply -f exercises/1.9/manifests/
+kubectl apply -f exercises/1.3/manifests/
+```
+
+Tre richieste a http://localhost:8081/pingpong, poi http://localhost:8081/ mostra la riga di log e `Ping / Pongs: 3`. Un refresh di `/` non aumenta il numero.
+
 
 
 

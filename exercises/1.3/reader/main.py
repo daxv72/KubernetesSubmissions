@@ -1,15 +1,18 @@
-"""Log reader — exercise 1.11.
+"""Log reader — exercise 2.1.
 
 GET / returns the latest log line and the ping-pong request count.
-Both files live on the persistent volume shared with the ping-pong Pod.
+The log line is a file shared with log-writer in this Pod.
+The count comes from an HTTP GET to the ping-pong Service.
 """
 
 import os
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = int(os.environ.get("PORT", "3000"))
 LOG_PATH = os.environ.get("LOG_PATH", "/usr/src/app/files/log.txt")
-PINGS_PATH = os.environ.get("PINGS_PATH", "/usr/src/app/files/pings.txt")
+PING_PONG_URL = os.environ.get("PING_PONG_URL", "http://ping-pong:3000/pings")
 
 
 def latest_line() -> str:
@@ -22,13 +25,12 @@ def latest_line() -> str:
 
 
 def ping_count() -> int:
+    # Service DNS name, not the Pod IP. The Service stays while Pods are replaced.
     try:
-        raw = open(PINGS_PATH, encoding="utf-8").read().strip()
-    except FileNotFoundError:
-        return 0
-    try:
+        with urllib.request.urlopen(PING_PONG_URL, timeout=2) as response:
+            raw = response.read().decode().strip()
         return int(raw)
-    except ValueError:
+    except (urllib.error.URLError, TimeoutError, ValueError):
         return 0
 
 

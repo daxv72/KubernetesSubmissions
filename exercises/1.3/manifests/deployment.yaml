@@ -14,13 +14,13 @@ spec:
       labels:
         app: log-output
     spec:
-      # fsGroup lets USER nobody write the mounted volume.
+      # fsGroup lets USER nobody write the emptyDir.
       securityContext:
         fsGroup: 65534
       volumes:
+        # Log line only. The ping count is no longer a file shared with ping-pong.
         - name: shared-log
-          persistentVolumeClaim:
-            claimName: shared-claim
+          emptyDir: {}
       containers:
         - name: log-writer
           image: log-writer:1.11
@@ -39,15 +39,15 @@ spec:
               cpu: 50m
               memory: 64Mi
         - name: log-reader
-          image: log-reader:1.11
+          image: log-reader:2.1
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
               value: "3000"
             - name: LOG_PATH
               value: /usr/src/app/files/log.txt
-            - name: PINGS_PATH
-              value: /usr/src/app/files/pings.txt
+            - name: PING_PONG_URL
+              value: http://ping-pong:3000/pings
           ports:
             - name: http
               containerPort: 3000

@@ -1,44 +1,32 @@
-"""Ping-pong — exercise 1.11.
+"""Ping-pong — exercise 2.1.
 
 GET /pingpong returns "pong N" and then increments the counter.
-The counter is a file on the shared persistent volume, so it survives a restart.
+GET /pings returns the current count and does not increment it.
+The count lives in memory. Log output reads it over HTTP.
 """
 
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = int(os.environ.get("PORT", "3000"))
-PINGS_PATH = os.environ.get("PINGS_PATH", "/usr/src/app/files/pings.txt")
 
-
-def read_count() -> int:
-    try:
-        raw = open(PINGS_PATH, encoding="utf-8").read().strip()
-    except FileNotFoundError:
-        return 0
-    try:
-        return int(raw)
-    except ValueError:
-        return 0
-
-
-def write_count(count: int) -> None:
-    os.makedirs(os.path.dirname(PINGS_PATH), exist_ok=True)
-    temporary = PINGS_PATH + ".tmp"
-    with open(temporary, "w", encoding="utf-8") as handle:
-        handle.write(f"{count}\n")
-    os.replace(temporary, PINGS_PATH)
+# One process, one counter. HTTPServer handles one request at a time.
+count = 0
 
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
+        global count
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
-        if path != "/pingpong":
+        if path == "/pingpong":
+            body = f"pong {count}\n".encode()
+            count += 1
+        elif path == "/pings":
+            # Read-only. Log output calls this on every page view.
+            body = f"{count}\n".encode()
+        else:
             self.send_error(404)
             return
-        count = read_count()
-        body = f"pong {count}\n".encode()
-        write_count(count + 1)
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
