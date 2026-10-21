@@ -6,6 +6,14 @@ spec:
   rules:
     - http:
         paths:
+          # Longer path wins over "/". The browser posts the form here.
+          - path: /todos
+            pathType: Prefix
+            backend:
+              service:
+                name: todo-backend
+                port:
+                  number: 2345
           - path: /
             pathType: Prefix
             backend:

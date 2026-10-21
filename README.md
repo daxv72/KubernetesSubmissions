@@ -23,6 +23,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 ### Networking between pods
 
 - [2.1.](https://github.com/daxv72/KubernetesSubmissions/tree/2.1/exercises/2.1)
+- [2.2.](https://github.com/daxv72/KubernetesSubmissions/tree/2.2/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -455,6 +456,37 @@ kubectl apply -f exercises/1.3/manifests/
 ```
 
 Tre richieste a http://localhost:8081/pingpong, poi http://localhost:8081/ mostra la riga di log e `Ping / Pongs: 3`. Un refresh di `/` non aumenta il numero.
+
+## Esercizio 2.2 — todo-backend
+
+Il progetto resta un'app che genera l'HTML. Il nuovo servizio `todo-backend` tiene i todo in memoria.
+
+- `GET /todos` risponde un array JSON.
+- `POST /todos` aggiunge un todo. Il form del browser manda il campo `todo`. Testo vuoto o più lungo di 140 caratteri viene rifiutato. Se il salvataggio riesce, il backend risponde con un redirect a `/`.
+
+Todo-app, a ogni apertura della pagina, chiama il Service:
+
+`http://todo-backend:2345/todos`
+
+`todo-backend` è il nome DNS. La porta `2345` è la porta del Service. Il container ascolta sulla `3000`.
+
+L'Ingress del progetto manda `/todos` a todo-backend e `/` a todo-app. L'Ingress di Log output usa anch'esso `/`: va tolto, altrimenti la 8081 non mostra il progetto.
+
+Il volume dell'immagine è quello della 1.12. Se il PVC resta `Pending`, il PersistentVolume va cancellato e ricreato: un volume locale `Released` non si riaggancia da solo.
+
+```bash
+docker exec k3d-k3s-default-agent-0 mkdir -p /tmp/todo-images
+kubectl apply -f exercises/1.12/
+docker build -t todo-backend:2.2 the_project/todo-backend
+docker build -t todo-app:2.2 the_project/todo-app
+k3d image import todo-backend:2.2 todo-app:2.2
+kubectl delete ingress log-output --ignore-not-found
+kubectl apply -f the_project/todo-backend/manifests/
+kubectl apply -f the_project/todo-app/manifests/
+```
+
+Poi http://localhost:8081/. Il form aggiunge un todo e la pagina lo mostra.
+
 
 
 

@@ -1,6 +1,6 @@
 # Todo app
 
-Exercise 1.13. `GET /` is an HTML page with the cached picture, a todo field, and three hardcoded todos. The field stops at 140 characters. The Send button does not store the todo yet.
+Exercise 2.2. `GET /` is an HTML page with the cached picture and the todo list read from `http://todo-backend:2345/todos`. The form posts to `/todos`. The field stops at 140 characters.
 
 `GET /image` serves the JPEG cached on the persistent volume from `exercises/1.12`. The same file is used for 10 minutes.
 
@@ -13,9 +13,11 @@ From the repository root. The image is local, so k3d needs an import. Log output
 ```bash
 docker exec k3d-k3s-default-agent-0 mkdir -p /tmp/todo-images
 kubectl apply -f exercises/1.12/
-docker build -t todo-app:1.13 the_project/todo-app
-k3d image import todo-app:1.13
+docker build -t todo-backend:2.2 the_project/todo-backend
+docker build -t todo-app:2.2 the_project/todo-app
+k3d image import todo-backend:2.2 todo-app:2.2
 kubectl delete ingress log-output --ignore-not-found
+kubectl apply -f the_project/todo-backend/manifests/
 kubectl apply -f the_project/todo-app/manifests/
 ```
 

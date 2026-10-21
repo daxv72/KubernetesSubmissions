@@ -1,15 +1,18 @@
-"""Todo app — exercise 1.13.
+"""Todo app — exercise 2.2.
 
-GET / is an HTML page with a picture, a todo field, and a fixed list.
-The Send button does not store the todo yet.
+GET / is an HTML page with a picture and the todo list from todo-backend.
+The form posts to /todos on that service.
 GET /image serves that JPEG from a persistent volume.
 The same file is used for CACHE_SECONDS (default 10 minutes).
 The first request after the window still returns the stored file.
 The request after that downloads a new picture from Lorem Picsum.
 """
 
+import html
+import json
 import os
 import time
+import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -17,6 +20,7 @@ PORT = int(os.environ.get("PORT", "8080"))
 IMAGE_DIR = os.environ.get("IMAGE_DIR", "/usr/src/app/files")
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "600"))
 PICSUM_URL = os.environ.get("PICSUM_URL", "https://picsum.photos/1200")
+TODO_BACKEND_URL = os.environ.get("TODO_BACKEND_URL", "http://todo-backend:2345/todos")
 
 IMAGE_PATH = os.path.join(IMAGE_DIR, "image.jpg")
 META_PATH = os.path.join(IMAGE_DIR, "meta.txt")
@@ -71,7 +75,20 @@ def ensure_image() -> None:
     download()
 
 
-def html_page() -> bytes:
+def fetch_todos() -> list[str]:
+    # Service DNS name. The browser does not call this URL.
+    try:
+        with urllib.request.urlopen(TODO_BACKEND_URL, timeout=2) as response:
+            data = json.loads(response.read().decode())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, str)]
+
+
+def html_page(todos: list[str]) -> bytes:
+    items = "\n".join(f"    <li>{html.escape(todo)}</li>" for todo in todos)
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -146,26 +163,24 @@ def html_page() -> bytes:
 <body>
   <h1>Todo App</h1>
   <img src="/image" alt="Cached picture">
-  <form>
-    <input type="text" name="todo" maxlength="140" placeholder="Enter a new todo (max 140 characters)" aria-label="New todo">
-    <button type="button">Send</button>
+  <form action="/todos" method="post">
+    <input type="text" name="todo" maxlength="140" required placeholder="Enter a new todo (max 140 characters)" aria-label="New todo">
+    <button type="submit">Send</button>
   </form>
   <h2>Todos</h2>
   <ul>
-    <li>Learn Kubernetes basics</li>
-    <li>Deploy application to cluster</li>
-    <li>Configure persistent volumes</li>
+__TODO_ITEMS__
   </ul>
 </body>
 </html>
-""".encode()
+""".replace("__TODO_ITEMS__", items).encode()
 
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
         if path == "/":
-            body = html_page()
+            body = html_page(fetch_todos())
             content_type = "text/html; charset=utf-8"
         elif path == "/image":
             ensure_image()
