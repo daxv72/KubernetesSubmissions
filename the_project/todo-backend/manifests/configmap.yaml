@@ -10,3 +10,5 @@ data:
   TODO_PATH: /todos
   TODO_FIELD: todo
   REDIRECT_URL: /
+  PGHOST: postgres
+  PGPORT: "5432"

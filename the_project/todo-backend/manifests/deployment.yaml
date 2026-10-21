@@ -17,11 +17,13 @@ spec:
     spec:
       containers:
         - name: todo-backend
-          image: todo-backend:2.6
+          image: todo-backend:2.8
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: todo-backend-config
+            - secretRef:
+                name: postgres-auth
           ports:
             - name: http
               containerPort: 3000
@@ -31,4 +33,4 @@ spec:
               memory: 32Mi
             limits:
               cpu: 50m
-              memory: 64Mi
+              memory: 128Mi

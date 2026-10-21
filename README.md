@@ -29,6 +29,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.5.](https://github.com/daxv72/KubernetesSubmissions/tree/2.5/exercises/2.5)
 - [2.6.](https://github.com/daxv72/KubernetesSubmissions/tree/2.6/the_project)
 - [2.7.](https://github.com/daxv72/KubernetesSubmissions/tree/2.7/exercises/2.7)
+- [2.8.](https://github.com/daxv72/KubernetesSubmissions/tree/2.8/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -594,6 +595,56 @@ kubectl rollout status deployment/ping-pong -n exercises
 ```
 
 Poi http://localhost:8081/pingpong.
+
+Per leggere il database dal pod `postgres-0`. La connessione locale non chiede la password.
+
+```bash
+kubectl exec -n exercises postgres-0 -- psql -U postgres -d postgres -c 'SELECT * FROM ping_counter;'
+kubectl exec -n exercises postgres-0 -- psql -U postgres -d postgres -c '\d ping_counter'
+kubectl exec -n exercises postgres-0 -- psql -U postgres -d postgres -c '\dt'
+```
+
+Sessione interattiva, si chiude con `\q`:
+
+```bash
+kubectl exec -n exercises -it postgres-0 -- psql -U postgres -d postgres
+```
+
+Da un pod temporaneo serve l’URL. La password del Secret è `example`:
+
+```bash
+kubectl run -n exercises -it --rm --restart=Never --image postgres:18.0 psql-for-debugging -- psql postgres://postgres:example@postgres:5432/postgres
+```
+
+## Esercizio 2.8 — i todo in Postgres
+
+I todo del progetto stanno nel database `todos`, nel namespace `project`. Postgres è uno StatefulSet da una replica, Service headless `postgres`, volume da `volumeClaimTemplates` montato su `/var/lib/postgresql`.
+
+Il backend legge host e porta dal ConfigMap `todo-backend-config` (`PGHOST`, `PGPORT`). Utente, password e nome del database arrivano dal Secret `postgres-auth`. La password `example` è quella dell'esempio del corso. Il database del progetto è distinto da quello di Ping-pong, che resta nel namespace `exercises`.
+
+I tre todo iniziali vengono inseriti solo se la tabella è vuota. Un riavvio del backend non li duplica.
+
+```bash
+docker build -t todo-backend:2.8 the_project/todo-backend
+k3d image import todo-backend:2.8
+kubectl apply -f the_project/namespace.yaml
+kubectl apply -f exercises/1.12/
+kubectl apply -f the_project/todo-backend/manifests/
+kubectl apply -f the_project/todo-app/manifests/
+kubectl delete ingress log-output -n exercises --ignore-not-found
+kubectl delete ingress dwk-material-ingress --ignore-not-found
+kubectl rollout status statefulset/postgres -n project
+kubectl rollout status deployment/todo-backend -n project
+kubectl rollout status deployment/todo-app -n project
+```
+
+Poi http://localhost:8081/.
+
+Per leggere i todo:
+
+```bash
+kubectl exec -n project postgres-0 -- psql -U postgres -d todos -c 'SELECT id, content FROM todos ORDER BY id;'
+```
 
 
 
