@@ -26,6 +26,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.2.](https://github.com/daxv72/KubernetesSubmissions/tree/2.2/the_project)
 - [2.3.](https://github.com/daxv72/KubernetesSubmissions/tree/2.3/exercises/2.3)
 - [2.4.](https://github.com/daxv72/KubernetesSubmissions/tree/2.4/the_project)
+- [2.5.](https://github.com/daxv72/KubernetesSubmissions/tree/2.5/exercises/2.5)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -527,6 +528,29 @@ kubectl apply -f the_project/todo-backend/manifests/
 kubectl apply -f the_project/todo-app/manifests/
 kubectl get deploy,svc,ingress,pvc -n project
 ```
+
+## Esercizio 2.5 — ConfigMap
+
+Log output, nel namespace `exercises`, legge un ConfigMap. La chiave `information.txt` è un file montato in `/usr/src/app/config/information.txt`. La chiave `MESSAGE` diventa la variabile d'ambiente con lo stesso nome, tramite `configMapKeyRef`.
+
+La pagina aggiunge quelle due righe sopra l'output di sempre:
+
+```
+file content: this text is from file
+env variable: MESSAGE=hello world
+```
+
+```bash
+docker build -t log-reader:2.5 exercises/1.3/reader
+k3d image import log-reader:2.5
+kubectl apply -f exercises/2.3/exercises-namespace.yaml
+kubectl apply -f exercises/2.5/configmap.yaml
+kubectl apply -f exercises/1.9/manifests/
+kubectl apply -f exercises/1.3/manifests/
+```
+
+Poi http://localhost:8081/.
+
 
 
 

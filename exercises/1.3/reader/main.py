@@ -1,8 +1,7 @@
-"""Log reader — exercise 2.1.
+"""Log reader — exercise 2.5.
 
-GET / returns the latest log line and the ping-pong request count.
-The log line is a file shared with log-writer in this Pod.
-The count comes from an HTTP GET to the ping-pong Service.
+GET / returns the ConfigMap file, the MESSAGE variable, the latest log line,
+and the ping-pong request count.
 """
 
 import os
@@ -12,7 +11,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = int(os.environ.get("PORT", "3000"))
 LOG_PATH = os.environ.get("LOG_PATH", "/usr/src/app/files/log.txt")
+INFO_PATH = os.environ.get("INFO_PATH", "/usr/src/app/config/information.txt")
 PING_PONG_URL = os.environ.get("PING_PONG_URL", "http://ping-pong:3000/pings")
+MESSAGE = os.environ.get("MESSAGE", "")
 
 
 def latest_line() -> str:
@@ -22,6 +23,14 @@ def latest_line() -> str:
     except FileNotFoundError:
         return ""
     return lines[-1] if lines else ""
+
+
+def file_content() -> str:
+    try:
+        with open(INFO_PATH, encoding="utf-8") as handle:
+            return handle.read().strip()
+    except FileNotFoundError:
+        return ""
 
 
 def ping_count() -> int:
@@ -40,7 +49,12 @@ class Handler(BaseHTTPRequestHandler):
         if path != "/":
             self.send_error(404)
             return
-        text = f"{latest_line()}\nPing / Pongs: {ping_count()}\n"
+        text = (
+            f"file content: {file_content()}\n"
+            f"env variable: MESSAGE={MESSAGE}\n"
+            f"{latest_line()}\n"
+            f"Ping / Pongs: {ping_count()}\n"
+        )
         body = text.encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; charset=utf-8")

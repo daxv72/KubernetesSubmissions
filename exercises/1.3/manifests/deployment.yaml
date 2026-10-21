@@ -22,6 +22,13 @@ spec:
         # Log line only. The ping count is no longer a file shared with ping-pong.
         - name: shared-log
           emptyDir: {}
+        # Only the file key. MESSAGE is an environment variable, not a second file.
+        - name: information
+          configMap:
+            name: log-output-config
+            items:
+              - key: information.txt
+                path: information.txt
       containers:
         - name: log-writer
           image: log-writer:1.11
@@ -40,7 +47,7 @@ spec:
               cpu: 50m
               memory: 64Mi
         - name: log-reader
-          image: log-reader:2.1
+          image: log-reader:2.5
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT
@@ -49,12 +56,22 @@ spec:
               value: /usr/src/app/files/log.txt
             - name: PING_PONG_URL
               value: http://ping-pong:3000/pings
+            - name: INFO_PATH
+              value: /usr/src/app/config/information.txt
+            - name: MESSAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: log-output-config
+                  key: MESSAGE
           ports:
             - name: http
               containerPort: 3000
           volumeMounts:
             - name: shared-log
               mountPath: /usr/src/app/files
+            - name: information
+              mountPath: /usr/src/app/config
+              readOnly: true
           resources:
             requests:
               cpu: 10m

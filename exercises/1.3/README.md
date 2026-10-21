@@ -19,8 +19,8 @@ From the repository root. Ping-pong must be running first, otherwise the count o
 
 ```bash
 docker build -t log-writer:1.11 exercises/1.3/writer
-docker build -t log-reader:2.1 exercises/1.3/reader
-k3d image import log-writer:1.11 log-reader:2.1
+docker build -t log-reader:2.5 exercises/1.3/reader
+k3d image import log-writer:1.11 log-reader:2.5
 kubectl apply -f exercises/1.3/manifests/
 ```
 

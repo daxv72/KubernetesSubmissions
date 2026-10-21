@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log-output-config
+  namespace: exercises
+data:
+  # Environment variable MESSAGE. The key name is the variable name.
+  MESSAGE: hello world
+  # Mounted as the file information.txt. The trailing newline is stripped by the app.
+  information.txt: |
+    this text is from file
