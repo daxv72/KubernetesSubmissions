@@ -28,6 +28,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.4.](https://github.com/daxv72/KubernetesSubmissions/tree/2.4/the_project)
 - [2.5.](https://github.com/daxv72/KubernetesSubmissions/tree/2.5/exercises/2.5)
 - [2.6.](https://github.com/daxv72/KubernetesSubmissions/tree/2.6/the_project)
+- [2.7.](https://github.com/daxv72/KubernetesSubmissions/tree/2.7/exercises/2.7)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -570,6 +571,29 @@ kubectl delete ingress log-output -n exercises --ignore-not-found
 ```
 
 Poi http://localhost:8081/.
+
+## Esercizio 2.7 — Postgres come StatefulSet
+
+Postgres gira nel namespace `exercises` come StatefulSet `postgres`, una replica. Il Service è headless (`clusterIP: None`) e si chiama `postgres`, lo stesso nome di `serviceName`. Il pod resta `postgres-0`. Il volume nasce da `volumeClaimTemplates` con la storage class `local-path` ed è montato su `/var/lib/postgresql` (percorso richiesto da Postgres 18). Cancellare lo StatefulSet non cancella il volume.
+
+Ping-pong salva il contatore nella tabella `ping_counter`. All'avvio riprova la connessione finché il database non accetta traffico. `GET /pingpong` risponde ancora `pong N` e poi incrementa. `GET /pings` legge soltanto.
+
+La password `example` è quella dell'esempio del corso. Sta nel Secret `postgres-auth`.
+
+```bash
+docker pull postgres:18.0
+docker build -t ping-pong:2.7 exercises/1.9
+k3d image import postgres:18.0
+k3d image import ping-pong:2.7
+kubectl apply -f exercises/2.3/exercises-namespace.yaml
+kubectl apply -f exercises/2.7/secret.yaml
+kubectl apply -f exercises/2.7/statefulset.yaml
+kubectl apply -f exercises/1.9/manifests/
+kubectl rollout status statefulset/postgres -n exercises
+kubectl rollout status deployment/ping-pong -n exercises
+```
+
+Poi http://localhost:8081/pingpong.
 
 
 
