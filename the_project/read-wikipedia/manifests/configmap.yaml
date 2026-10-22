@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: read-wikipedia-config
+  namespace: project
+data:
+  WIKIPEDIA_RANDOM_URL: https://en.wikipedia.org/wiki/Special:Random
+  TODO_BACKEND_URL: http://todo-backend:2345/todos
+  TODO_FIELD: todo
+  TODO_PREFIX: Read
+  MAX_LENGTH: "140"
+  USER_AGENT: kubernetes-mooc-todo-cron/2.9 (student exercise)

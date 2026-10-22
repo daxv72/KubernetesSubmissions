@@ -1,0 +1,31 @@
+# Minute 0 of every hour. Forbid skips the next run if the previous one is still going.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: read-wikipedia
+  namespace: project
+spec:
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: read-wikipedia
+              image: read-wikipedia:2.9
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - configMapRef:
+                    name: read-wikipedia-config
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 50m
+                  memory: 64Mi

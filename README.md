@@ -30,6 +30,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.6.](https://github.com/daxv72/KubernetesSubmissions/tree/2.6/the_project)
 - [2.7.](https://github.com/daxv72/KubernetesSubmissions/tree/2.7/exercises/2.7)
 - [2.8.](https://github.com/daxv72/KubernetesSubmissions/tree/2.8/the_project)
+- [2.9.](https://github.com/daxv72/KubernetesSubmissions/tree/2.9/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -645,6 +646,30 @@ Per leggere i todo:
 ```bash
 kubectl exec -n project postgres-0 -- psql -U postgres -d todos -c 'SELECT id, content FROM todos ORDER BY id;'
 ```
+
+## Esercizio 2.9 — un todo ogni ora
+
+Il CronJob `read-wikipedia`, nel namespace `project`, parte allo scoccare di ogni ora (`0 * * * *`). Chiama `https://en.wikipedia.org/wiki/Special:Random` e legge l'header `Location`, senza seguire il redirect. Poi invia al backend il testo `Read` seguito da quell'URL. Il backend lo salva in Postgres come gli altri todo.
+
+URL, campo del form e limite di 140 caratteri stanno nel ConfigMap `read-wikipedia-config`.
+
+```bash
+docker build -t read-wikipedia:2.9 the_project/read-wikipedia
+k3d image import read-wikipedia:2.9
+kubectl apply -f the_project/namespace.yaml
+kubectl apply -f the_project/read-wikipedia/manifests/
+```
+
+Per una prova subito, senza aspettare l'ora:
+
+```bash
+kubectl create job -n project read-wikipedia-now --from=cronjob/read-wikipedia
+kubectl wait -n project --for=condition=complete job/read-wikipedia-now --timeout=120s
+kubectl logs -n project job/read-wikipedia-now
+```
+
+Poi http://localhost:8081/. Il nuovo todo inizia con `Read https://en.wikipedia.org/wiki/`.
+
 
 
 
