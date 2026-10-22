@@ -1,8 +1,8 @@
-"""Todo backend — exercise 2.8.
+"""Todo backend — exercise 2.10.
 
 GET and POST for the todo list. The path, port, length limit, and
 database address come from environment variables. The list is stored
-in Postgres.
+in Postgres. Every POST is printed to stdout so Loki can show it.
 """
 
 import json
@@ -102,7 +102,8 @@ def add_todo(text: str) -> None:
     query("INSERT INTO todos (content) VALUES (:content)", content=text)
 
 
-def parse_todo(content_type: str, raw: bytes) -> str | None:
+def todo_text(content_type: str, raw: bytes) -> str | None:
+    """The field value, including text that is empty or longer than the limit."""
     if "application/json" in content_type:
         try:
             payload = json.loads(raw.decode())
@@ -112,10 +113,16 @@ def parse_todo(content_type: str, raw: bytes) -> str | None:
     else:
         fields = urllib.parse.parse_qs(raw.decode())
         text = fields.get(TODO_FIELD, [""])[0]
-    text = str(text).strip()
-    if not text or len(text) > MAX_LENGTH:
-        return None
-    return text
+    return str(text).strip()
+
+
+def log_todo(decision: str, text: str) -> None:
+    # One line, so Loki keeps the whole message in a single entry.
+    flat = text.replace("\r", " ").replace("\n", " ")
+    print(
+        f"todo {decision} length={len(text)} limit={MAX_LENGTH} text={flat}",
+        flush=True,
+    )
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -138,8 +145,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)
-        todo = parse_todo(self.headers.get("Content-Type", ""), raw)
+        todo = todo_text(self.headers.get("Content-Type", ""), raw)
         if todo is None:
+            log_todo("rejected", "")
             body = f"Todo must be 1 to {MAX_LENGTH} characters.\n".encode()
             self.send_response(400)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -147,6 +155,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if not todo or len(todo) > MAX_LENGTH:
+            log_todo("rejected", todo)
+            body = f"Todo must be 1 to {MAX_LENGTH} characters.\n".encode()
+            self.send_response(400)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        log_todo("accepted", todo)
         add_todo(todo)
         # The browser form posts here. Send the user back to the HTML page.
         self.send_response(303)

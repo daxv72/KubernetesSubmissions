@@ -31,6 +31,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.7.](https://github.com/daxv72/KubernetesSubmissions/tree/2.7/exercises/2.7)
 - [2.8.](https://github.com/daxv72/KubernetesSubmissions/tree/2.8/the_project)
 - [2.9.](https://github.com/daxv72/KubernetesSubmissions/tree/2.9/the_project)
+- [2.10.](https://github.com/daxv72/KubernetesSubmissions/tree/2.10/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -669,6 +670,32 @@ kubectl logs -n project job/read-wikipedia-now
 ```
 
 Poi http://localhost:8081/. Il nuovo todo inizia con `Read https://en.wikipedia.org/wiki/`.
+
+## Esercizio 2.10 — log delle richieste
+
+Ogni POST al backend stampa una riga su stdout. Alloy la manda a Loki. Il limite resta 140 caratteri, letto da `MAX_LENGTH` nel ConfigMap `todo-backend-config`. Un testo più lungo risponde `400` e la riga dice `todo rejected`, con il testo rifiutato.
+
+```bash
+docker build -t todo-backend:2.10 the_project/todo-backend
+k3d image import todo-backend:2.10
+kubectl apply -f the_project/todo-backend/manifests/deployment.yaml
+kubectl rollout status deployment/todo-backend -n project
+```
+
+Prova con curl. La seconda richiesta deve fallire.
+
+```bash
+curl -sS -D- -o /dev/null -X POST http://127.0.0.1:8081/todos \
+  --data-urlencode 'todo=short enough'
+curl -sS -D- -X POST http://127.0.0.1:8081/todos \
+  --data-urlencode "todo=$(python3 -c 'print("x"*141)')"
+```
+
+In Grafana, datasource Loki, query:
+
+```logql
+{namespace="project", container="todo-backend"} |= "todo rejected"
+```
 
 
 
