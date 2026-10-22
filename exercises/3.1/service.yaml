@@ -1,0 +1,18 @@
+# Exercise 3.1: expose Ping-pong with a LoadBalancer.
+# On GKE this asks for a cloud load balancer. On the local Floci cluster
+# there is no public IP; reach the Service with kubectl port-forward.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ping-pong
+  namespace: exercises
+  labels:
+    app: ping-pong
+spec:
+  type: LoadBalancer
+  selector:
+    app: ping-pong
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

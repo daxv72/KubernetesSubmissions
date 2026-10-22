@@ -33,6 +33,10 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [2.9.](https://github.com/daxv72/KubernetesSubmissions/tree/2.9/the_project)
 - [2.10.](https://github.com/daxv72/KubernetesSubmissions/tree/2.10/the_project)
 
+### Introduction to Google Kubernetes Engine
+
+- [3.1.](https://github.com/daxv72/KubernetesSubmissions/tree/3.1/exercises/3.1)
+
 ## Comandi usati per l'esercizio 1.1
 
 App **Log output** in `exercises/1.1`. All'avvio genera una stringa casuale, la tiene in memoria e la stampa ogni 5 secondi con un timestamp UTC.
@@ -696,6 +700,92 @@ In Grafana, datasource Loki, query:
 ```logql
 {namespace="project", container="todo-backend"} |= "todo rejected"
 ```
+
+## GKE locale con Floci
+
+Il capitolo GKE si fa contro Floci, non contro Google. Il container `floci-gcp` è già in esecuzione su `http://localhost:4588`. Il progetto finto è `floci-local`. Senza le variabili qui sotto, `gcloud` parla con Google Cloud vero.
+
+Controllo:
+
+```bash
+floci gcp status -o json
+floci gcp doctor -o json
+curl -sS 'http://localhost:4588/container/v1/projects/floci-local/locations/us-central1/clusters'
+```
+
+La lista deve essere `{"clusters":[]}`.
+
+In un terminale nuovo, prima di ogni `gcloud`. Non fare `gcloud auth login`. La config sta in una cartella a parte, così il profilo Google vero non viene toccato.
+
+```bash
+export CLOUDSDK_CONFIG="$HOME/.floci/gcp/gcloud"
+export CLOUDSDK_CORE_PROJECT=floci-local
+export CLOUDSDK_AUTH_ACCESS_TOKEN=floci-fake-token
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+export CLOUDSDK_CORE_SHOULD_PROMPT_TO_ENABLE_API=false
+E=http://localhost:4588
+export CLOUDSDK_API_ENDPOINT_OVERRIDES_CONTAINER="$E/container/"
+export CLOUDSDK_API_ENDPOINT_OVERRIDES_SERVICEUSAGE="$E/"
+```
+
+Cluster locale. Floci avvia un k3s via Docker. Non è il cluster k3d già usato per gli esercizi 1 e 2.
+
+```bash
+gcloud container clusters create dwk-cluster --region=us-central1 --async
+gcloud container clusters list --region=us-central1
+gcloud container clusters get-credentials dwk-cluster --region=us-central1
+kubectl get nodes
+```
+
+Il capitolo applica `material-example/app6`: Deployment `seedimage-dep` (6 repliche, immagine pubblica `jakousa/dwk-app6`) e Service `seedimage-svc` di tipo LoadBalancer. I file locali sono gli stessi del corso. Si applicano sul contesto Floci, dopo `get-credentials`.
+
+```bash
+kubectl apply -f material-example/app6/manifests/deployment.yaml
+kubectl apply -f material-example/app6/manifests/service.yaml
+kubectl get pods
+kubectl get svc seedimage-svc
+```
+
+Su Google il LoadBalancer riceve un IP pubblico a pagamento. Qui non c'è. Si apre l'app con un port-forward:
+
+```bash
+kubectl port-forward svc/seedimage-svc 8086:80
+```
+
+Poi http://127.0.0.1:8086. Un refresh può mostrare un'immagine diversa, perché le 6 repliche hanno seed diversi.
+
+Per tornare a k3d: `kubectl config use-context k3d-k3s-default`.
+
+Per spegnere solo questo cluster locale:
+
+```bash
+gcloud container clusters delete dwk-cluster --region=us-central1 --quiet
+```
+
+## Esercizio 3.1 — Ping-pong con LoadBalancer
+
+Il Service `exercises/3.1/service.yaml` è un LoadBalancer: porta 80 verso la 3000 di Ping-pong. L'app resta `exercises/1.9` (immagine `ping-pong:2.7`) e il database resta lo StatefulSet di 2.7. Non applicare la cartella `exercises/1.9/manifests/`: lì il Service è ancora ClusterIP.
+
+`KUBECONFIG` separa questo cluster da k3d. Senza quella variabile, `kubectl` resta su `k3d-k3s-default`.
+
+```bash
+export KUBECONFIG="$HOME/.floci/gcp/kubeconfig"
+gcloud container clusters get-credentials dwk-cluster --region=us-central1
+
+C=floci-gcp-gke-floci-local-dwk-cluster
+docker save postgres:18.0 | docker exec -i "$C" ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import -
+docker save ping-pong:2.7 | docker exec -i "$C" ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import -
+
+kubectl apply -f exercises/2.3/exercises-namespace.yaml
+kubectl apply -f exercises/2.7/secret.yaml
+kubectl apply -f exercises/2.7/statefulset.yaml
+kubectl apply -f exercises/1.9/manifests/deployment.yaml
+kubectl apply -f exercises/3.1/service.yaml
+kubectl get svc ping-pong -n exercises
+kubectl port-forward -n exercises svc/ping-pong 8086:80
+```
+
+Poi http://127.0.0.1:8086/pingpong. La prima risposta è `pong 0`. L'IP esterno che assegna k3s è l'indirizzo del container Docker, non raggiungibile dal Mac.
 
 
 
