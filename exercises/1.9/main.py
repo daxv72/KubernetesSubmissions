@@ -1,9 +1,10 @@
-"""Ping-pong — exercise 3.2.
+"""Ping-pong — exercise 3.4.
 
-GET /pingpong returns "pong N" and then increments the counter.
+GET / returns "pong N" and then increments the counter.
+The public path stays /pingpong. The HTTPRoute rewrites it to / before
+the request reaches this process.
+GET /pingpong does the same, because the k3d Ingress does not rewrite.
 GET /pings returns the current count and does not increment it.
-GET / returns 200 without touching the counter. A GKE Ingress health check
-calls / on the Pod even when the Ingress path is /pingpong.
 The count is one row in Postgres. Log output reads it over HTTP.
 """
 
@@ -110,15 +111,13 @@ def next_count() -> int:
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
-        if path == "/pingpong":
+        if path in ("/", "/pingpong"):
+            # / is the app path. A URLRewrite filter turns public /pingpong into /.
+            # /pingpong stays so the k3d Ingress, which does not rewrite, still works.
             body = f"pong {next_count()}\n".encode()
         elif path == "/pings":
             # Read-only. Log output calls this on every page view.
             body = f"{current_count()}\n".encode()
-        elif path == "/":
-            # Health check only. Incrementing here would move the counter
-            # on every GKE probe.
-            body = b"ok\n"
         else:
             self.send_error(404)
             return

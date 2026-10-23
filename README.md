@@ -38,6 +38,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [3.1.](https://github.com/daxv72/KubernetesSubmissions/tree/3.1/exercises/3.1)
 - [3.2.](https://github.com/daxv72/KubernetesSubmissions/tree/3.2/exercises/3.2)
 - [3.3.](https://github.com/daxv72/KubernetesSubmissions/tree/3.3/exercises/3.3)
+- [3.4.](https://github.com/daxv72/KubernetesSubmissions/tree/3.4/exercises/3.4)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -832,6 +833,20 @@ kubectl get gateway -n exercises my-gateway
 ```
 
 `http://<ADDRESS>/` è Log output. `http://<ADDRESS>/pingpong` è Ping-pong. Questi comandi non sono stati eseguiti. Su k3d la classe `gke-l7-global-external-managed` non esiste, e il cluster attuale tiene Traefik per il progetto.
+
+## Esercizio 3.4 — riscrittura di /pingpong
+
+Niente è stato applicato su Google. Il filtro è `URLRewrite`, non `RequestRedirect`: il browser resta su `/pingpong`. I due filtri non possono stare sulla stessa regola.
+
+Ping-pong (`exercises/1.9`, immagine `ping-pong:3.4`) conta su `GET /`. `GET /pings` legge soltanto. `GET /pingpong` sul processo fa la stessa cosa, perché l'Ingress di k3d non riscrive.
+
+La HTTPRoute di `exercises/3.4/httproute.yaml` ha lo stesso nome di quella del 3.3. `ReplacePrefixMatch: /` trasforma il prefisso `/pingpong` in `/` prima del Pod. `/` senza quel prefisso resta Log output.
+
+```bash
+kubectl apply -f exercises/3.4/httproute.yaml
+```
+
+Questo comando non è stato eseguito.
 
 
 
