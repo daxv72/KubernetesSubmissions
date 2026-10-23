@@ -1,7 +1,9 @@
-"""Ping-pong — exercise 2.7.
+"""Ping-pong — exercise 3.2.
 
 GET /pingpong returns "pong N" and then increments the counter.
 GET /pings returns the current count and does not increment it.
+GET / returns 200 without touching the counter. A GKE Ingress health check
+calls / on the Pod even when the Ingress path is /pingpong.
 The count is one row in Postgres. Log output reads it over HTTP.
 """
 
@@ -113,6 +115,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/pings":
             # Read-only. Log output calls this on every page view.
             body = f"{current_count()}\n".encode()
+        elif path == "/":
+            # Health check only. Incrementing here would move the counter
+            # on every GKE probe.
+            body = b"ok\n"
         else:
             self.send_error(404)
             return

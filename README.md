@@ -36,6 +36,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 ### Introduction to Google Kubernetes Engine
 
 - [3.1.](https://github.com/daxv72/KubernetesSubmissions/tree/3.1/exercises/3.1)
+- [3.2.](https://github.com/daxv72/KubernetesSubmissions/tree/3.2/exercises/3.2)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -786,6 +787,28 @@ kubectl port-forward -n exercises svc/ping-pong 8086:80
 ```
 
 Poi http://127.0.0.1:8086/pingpong. La prima risposta è `pong 0`. L'IP esterno che assegna k3s è l'indirizzo del container Docker, non raggiungibile dal Mac.
+
+## Esercizio 3.2 — Ingress, solo sulla carta
+
+Niente è stato applicato su Google. I manifest sono in `exercises/3.2/`.
+
+Ping-pong (`exercises/1.9`, immagine `ping-pong:3.2`) risponde già su `/pingpong`. In più `GET /` risponde `ok` e non incrementa il contatore. L'health check di un Ingress GKE chiama `GET /` sul Pod anche se il path dell'Ingress è `/pingpong`. Senza quel 200 il backend resta unhealthy. Log output risponde già 200 su `/`.
+
+Su GKE i Service devono essere NodePort. Le porte restano 3000 (Ping-pong) e 2345 (Log output), così `http://ping-pong:3000/pings` continua a funzionare. L'indirizzo pubblico è quello di `kubectl get ing`, non la node port.
+
+```bash
+kubectl apply -f exercises/2.3/exercises-namespace.yaml
+kubectl apply -f exercises/2.7/secret.yaml
+kubectl apply -f exercises/2.7/statefulset.yaml
+kubectl apply -f exercises/2.5/configmap.yaml
+kubectl apply -f exercises/1.3/manifests/deployment.yaml
+kubectl apply -f exercises/1.9/manifests/deployment.yaml
+kubectl apply -f exercises/3.2/services.yaml
+kubectl apply -f exercises/3.2/ingress.yaml
+kubectl get ing -n exercises
+```
+
+`http://<ADDRESS>/` è Log output. `http://<ADDRESS>/pingpong` è Ping-pong. Questi comandi non sono stati eseguiti. Non applicare le cartelle `exercises/1.3/manifests/` e `exercises/1.9/manifests/` intere: contengono ancora i Service ClusterIP.
 
 
 
