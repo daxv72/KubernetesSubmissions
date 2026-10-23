@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - image-claim.yaml
+  - todo-app/manifests/configmap.yaml
+  - todo-app/manifests/deployment.yaml
+  - todo-app/manifests/service.yaml
+  - todo-app/manifests/ingress.yaml
+  - todo-backend/manifests/secret.yaml
+  - todo-backend/manifests/configmap.yaml
+  - todo-backend/manifests/postgres.yaml
+  - todo-backend/manifests/deployment.yaml
+  - todo-backend/manifests/service.yaml
+  - read-wikipedia/manifests/configmap.yaml
+  - read-wikipedia/manifests/cronjob.yaml
+images:
+  - name: todo-app
+    newTag: "2.6"
+  - name: todo-backend
+    newTag: "2.10"
+  - name: read-wikipedia
+    newTag: "2.9"

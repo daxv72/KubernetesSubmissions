@@ -39,6 +39,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [3.2.](https://github.com/daxv72/KubernetesSubmissions/tree/3.2/exercises/3.2)
 - [3.3.](https://github.com/daxv72/KubernetesSubmissions/tree/3.3/exercises/3.3)
 - [3.4.](https://github.com/daxv72/KubernetesSubmissions/tree/3.4/exercises/3.4)
+- [3.5.](https://github.com/daxv72/KubernetesSubmissions/tree/3.5/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -847,6 +848,33 @@ kubectl apply -f exercises/3.4/httproute.yaml
 ```
 
 Questo comando non è stato eseguito.
+
+## Esercizio 3.5 — Kustomize del progetto
+
+`the_project/kustomization.yaml` elenca i manifest del progetto. `kubectl kustomize` mette il Namespace prima dei Deployment. I tag delle immagini restano `todo-app:2.6`, `todo-backend:2.10` e `read-wikipedia:2.9`.
+
+Il claim dell'immagine è `the_project/image-claim.yaml`, uguale a quello di 1.12 (`storageClassName: todo-images`). Il PersistentVolume resta in `exercises/1.12`: è legato al nodo k3d.
+
+Build locale, senza applicare:
+
+```bash
+kubectl kustomize the_project
+```
+
+Su k3d, con il PV già presente:
+
+```bash
+kubectl apply -k the_project
+```
+
+Su GKE si usa l'overlay `overlays/gke`. Toglie `storageClassName` dal claim e dallo StatefulSet, così vale la StorageClass predefinita del cluster. I Service `todo-app` e `todo-backend` diventano NodePort, come chiede l'Ingress GKE. Postgres resta headless.
+
+```bash
+kubectl kustomize overlays/gke
+kubectl apply -k overlays/gke
+```
+
+Questi apply non sono stati eseguiti. Le immagini sono locali: su GKE vanno pubblicate in un registry e il nome va sostituito nell'overlay. L'Ingress chiama `GET /` su ogni backend. Log output del progetto risponde su `/`. Il backend risponde solo su `/todos`, quindi l'health check GKE di quel Service può restare unhealthy.
 
 
 

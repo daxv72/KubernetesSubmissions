@@ -1,0 +1,14 @@
+# Same claim as exercises/1.12. The PersistentVolume stays there:
+# it is pinned to the k3d node and is not part of this bundle.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: todo-image-claim
+  namespace: project
+spec:
+  storageClassName: todo-images
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

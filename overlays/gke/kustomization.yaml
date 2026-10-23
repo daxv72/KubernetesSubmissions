@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../the_project
+patches:
+  - target:
+      kind: PersistentVolumeClaim
+      name: todo-image-claim
+    patch: |-
+      - op: remove
+        path: /spec/storageClassName
+  - target:
+      group: apps
+      kind: StatefulSet
+      name: postgres
+    patch: |-
+      - op: remove
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+  - target:
+      kind: Service
+      name: todo-app
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+  - target:
+      kind: Service
+      name: todo-backend
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
