@@ -7,6 +7,10 @@ metadata:
     app: todo-app
 spec:
   replicas: 1
+  # The image cache is a ReadWriteOnce volume. RollingUpdate would start the
+  # new Pod before the old one releases the claim, so the new Pod stays Pending.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: todo-app

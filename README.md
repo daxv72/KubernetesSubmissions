@@ -41,6 +41,10 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [3.4.](https://github.com/daxv72/KubernetesSubmissions/tree/3.4/exercises/3.4)
 - [3.5.](https://github.com/daxv72/KubernetesSubmissions/tree/3.5/the_project)
 
+### Deployment Pipeline
+
+- [3.6.](https://github.com/daxv72/KubernetesSubmissions/tree/3.6/the_project)
+
 ## Comandi usati per l'esercizio 1.1
 
 App **Log output** in `exercises/1.1`. All'avvio genera una stringa casuale, la tiene in memoria e la stampa ogni 5 secondi con un timestamp UTC.
@@ -875,6 +879,14 @@ kubectl apply -k overlays/gke
 ```
 
 Questi apply non sono stati eseguiti. Le immagini sono locali: su GKE vanno pubblicate in un registry e il nome va sostituito nell'overlay. L'Ingress chiama `GET /` su ogni backend. Log output del progetto risponde su `/`. Il backend risponde solo su `/todos`, quindi l'health check GKE di quel Service può restare unhealthy.
+
+## Esercizio 3.6 — deploy automatico
+
+Il workflow è `.github/workflows/project.yaml`. Parte a ogni push su `main` che tocca `the_project/`, `overlays/gke/` o il workflow stesso. Costruisce `todo-app`, `todo-backend` e `read-wikipedia`, li pubblica su Artifact Registry e li applica con Kustomize sull'overlay GKE. Il tag di ogni immagine è `main-<sha del commit>`.
+
+L'autenticazione è Workload Identity, senza chiave nel repository. I secret dell'environment `GKE_PROJECT` sono `GKE_PROJECT`, `WORKLOAD_IDENTITY_PROVIDER` e `SERVICE_ACCOUNT`. Non sono stati creati: il service account, il pool e il provider del capitolo restano comandi da lanciare solo su un progetto Google vero. Senza quei secret il job si ferma all'autenticazione e non crea risorse.
+
+`todo-app` monta un volume `ReadWriteOnce`. La strategia del Deployment è `Recreate`: Kubernetes spegne il Pod vecchio prima di crearne uno nuovo. Con `RollingUpdate` il Pod nuovo resterebbe Pending, perché il volume può essere montato da un solo Pod. Postgres è uno StatefulSet con una replica e non ha questo problema.
 
 
 
