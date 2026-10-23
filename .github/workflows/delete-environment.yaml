@@ -1,0 +1,47 @@
+name: Delete branch environment
+
+on:
+  delete:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  GKE_CLUSTER: dwk-cluster
+  GKE_ZONE: europe-north1-b
+
+jobs:
+  delete-environment:
+    if: github.event.ref_type == 'branch' && github.event.ref != 'main'
+    name: Delete the branch namespace
+    runs-on: ubuntu-latest
+    environment: GKE_PROJECT
+    steps:
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v3
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          project_id: ${{ env.PROJECT_ID }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Delete the namespace
+        env:
+          NAMESPACE: ${{ github.event.ref }}
+        run: |
+          case "$NAMESPACE" in
+            project|default|kube-system|kube-public|kube-node-lease)
+              echo "Refusing to delete namespace $NAMESPACE"
+              exit 1
+              ;;
+          esac
+          kubectl delete namespace "$NAMESPACE" --ignore-not-found

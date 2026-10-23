@@ -45,6 +45,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 
 - [3.6.](https://github.com/daxv72/KubernetesSubmissions/tree/3.6/the_project)
 - [3.7.](https://github.com/daxv72/KubernetesSubmissions/tree/3.7/the_project)
+- [3.8.](https://github.com/daxv72/KubernetesSubmissions/tree/3.8/.github/workflows)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -902,6 +903,14 @@ kustomize edit set namespace "$NAMESPACE"
 ```
 
 La cancellazione del namespace quando il branch viene eliminato è l'esercizio 3.8. Non è in questo workflow.
+
+## Esercizio 3.8 — cancellare l'ambiente col branch
+
+Il workflow nuovo è `.github/workflows/delete-environment.yaml`. GitHub lo esegue sull'evento `delete`, e solo se il file è su `main`.
+
+Se il riferimento cancellato è un branch e non è `main`, il job elimina il namespace con quel nome. `main` usa il namespace `project`, quindi non viene mai cancellato. Lo stesso rifiuto vale per `default`, `kube-system`, `kube-public` e `kube-node-lease`.
+
+Usa gli stessi secret del deploy. Senza quei secret il job si ferma all'autenticazione. L'evento `delete` non parte da un push: il file deve essere su `main`.
 
 
 
