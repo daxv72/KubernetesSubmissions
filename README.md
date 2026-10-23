@@ -37,6 +37,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 
 - [3.1.](https://github.com/daxv72/KubernetesSubmissions/tree/3.1/exercises/3.1)
 - [3.2.](https://github.com/daxv72/KubernetesSubmissions/tree/3.2/exercises/3.2)
+- [3.3.](https://github.com/daxv72/KubernetesSubmissions/tree/3.3/exercises/3.3)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -809,6 +810,28 @@ kubectl get ing -n exercises
 ```
 
 `http://<ADDRESS>/` è Log output. `http://<ADDRESS>/pingpong` è Ping-pong. Questi comandi non sono stati eseguiti. Non applicare le cartelle `exercises/1.3/manifests/` e `exercises/1.9/manifests/` intere: contengono ancora i Service ClusterIP.
+
+## Esercizio 3.3 — Gateway API al posto dell'Ingress
+
+Niente è stato applicato su Google. Un Gateway di classe `gke-l7-global-external-managed` crea un load balancer esterno.
+
+Prima, sul cluster vero:
+
+```bash
+gcloud container clusters update dwk-cluster --location=europe-north1-b --gateway-api=standard
+```
+
+I Service tornano ClusterIP. L'Ingress voleva NodePort. Le porte restano 3000 e 2345. La HTTPRoute manda `/pingpong` a Ping-pong e `/` a Log output. Il path non viene riscritto: l'app riceve ancora `/pingpong`. La riscrittura è l'esercizio 3.4.
+
+```bash
+kubectl apply -f exercises/3.3/services.yaml
+kubectl apply -f exercises/3.3/gateway.yaml
+kubectl apply -f exercises/3.3/httproute.yaml
+kubectl delete -f exercises/3.2/ingress.yaml
+kubectl get gateway -n exercises my-gateway
+```
+
+`http://<ADDRESS>/` è Log output. `http://<ADDRESS>/pingpong` è Ping-pong. Questi comandi non sono stati eseguiti. Su k3d la classe `gke-l7-global-external-managed` non esiste, e il cluster attuale tiene Traefik per il progetto.
 
 
 
