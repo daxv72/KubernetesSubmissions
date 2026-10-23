@@ -47,6 +47,10 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [3.7.](https://github.com/daxv72/KubernetesSubmissions/tree/3.7/the_project)
 - [3.8.](https://github.com/daxv72/KubernetesSubmissions/tree/3.8/.github/workflows)
 
+### GKE features
+
+- [3.9.](https://github.com/daxv72/KubernetesSubmissions/tree/3.9/the_project)
+
 ## Comandi usati per l'esercizio 1.1
 
 App **Log output** in `exercises/1.1`. All'avvio genera una stringa casuale, la tiene in memoria e la stampa ogni 5 secondi con un timestamp UTC.
@@ -911,6 +915,20 @@ Il workflow nuovo è `.github/workflows/delete-environment.yaml`. GitHub lo eseg
 Se il riferimento cancellato è un branch e non è `main`, il job elimina il namespace con quel nome. `main` usa il namespace `project`, quindi non viene mai cancellato. Lo stesso rifiuto vale per `default`, `kube-system`, `kube-public` e `kube-node-lease`.
 
 Usa gli stessi secret del deploy. Senza quei secret il job si ferma all'autenticazione. L'evento `delete` non parte da un push: il file deve essere su `main`.
+
+## Esercizio 3.9 — DBaaS contro database nostro
+
+La risposta sta in [`the_project/README.md`](the_project/README.md). Il progetto oggi è il database nostro: StatefulSet `postgres`, immagine `postgres:18.0`, una replica, volume da 100Mi, password nel Secret `postgres-auth`. I Pod lo raggiungono su `postgres:5432`. L'alternativa del capitolo è Cloud SQL for PostgreSQL, fuori dal cluster.
+
+**Avvio.** Il database nostro è già nei manifest. `kubectl apply` crea Service, StatefulSet e disco. Non serve un'altra API Google né una rete privata verso un prodotto separato. Un branch dell'esercizio 3.7 riceve il suo database, perché lo StatefulSet nasce in quel namespace. Cloud SQL parte dall'API SQL Admin, da una regione, da una taglia di macchina e da un disco, poi dal database `todos` e da un utente. L'istanza ci mette minuti. Il backend deve lasciare `PGHOST=postgres` e passare da un IP privato o dal Cloud SQL Auth Proxy. Un'istanza sola mescola i branch. Un'istanza per branch ripete tutto il lavoro.
+
+**Costo iniziale.** Il database nostro aggiunge un disco al cluster già acceso. Qui sono 100Mi. Non c'è una macchina database che fattura anche da ferma. Cloud SQL fattura da solo dal momento in cui l'istanza esiste: vCPU, memoria e il suo disco, anche nelle ore senza todo. Backup e log delle transazioni si aggiungono. L'alta disponibilità regionale tiene uno standby e costa di più. Per questa applicazione l'istanza costa più del disco sotto il Pod, già il primo giorno.
+
+**Manutenzione.** Col database nostro la versione è il tag `postgres:18.0`. Riavvii, disco pieno e nodo spento restano nostri. Una replica sola significa fermo finché il Pod non viene rischedulato e il volume non si riattacca. Un disco di zona non fa failover da sé. Cloud SQL applica le patch minori in una finestra di manutenzione. L'alta disponibilità è l'impostazione `REGIONAL`. Schema, utenti e flag restano nostri. Un salto di versione maggiore è una scelta nostra e riavvia l'istanza. Accendere o spegnere il point-in-time recovery la riavvia.
+
+**Backup.** Nel progetto non c'è un backup salvato. Il Job `pg_dump` della parte 3 produceva il dump e non lo conservava. Un backup utile è un CronJob che esegue `pg_dump` e carica il file. Il ripristino è scaricare il file e passarlo a `psql`, e va provato. Uno snapshot del disco GKE ha meno passi. Uno snapshot di Postgres mentre scrive può essere incoerente. Cloud SQL fa un backup automatico al giorno. Su un'istanza Enterprise creata dalla console li tiene 7 giorni (15 su Enterprise Plus). La conservazione si imposta da 1 a 365 giorni. I backup a richiesta restano finché non li cancelliamo. Il point-in-time recovery ripete i write-ahead log fino a un istante e crea un'istanza nuova. Dalla console è acceso di default su Enterprise. Con gcloud, Terraform o l'Admin API va acceso a mano. Non scriviamo lo script di restore. Il prezzo è lo storage dei backup, e la prima accensione del point-in-time recovery riavvia l'istanza.
+
+Per questa applicazione resta il database nostro: i manifest ci sono, ogni branch ha il suo database, il costo extra è un disco piccolo. Backup e failover sono lavoro ancora da fare. Cloud SQL ha senso quando backup giornalieri, ripristino a un istante e failover devono essere impostazioni. Setup e istanza sempre accesa sono il motivo per lasciarlo dopo.
 
 
 
