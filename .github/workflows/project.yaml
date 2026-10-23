@@ -2,8 +2,6 @@ name: Deploy project
 
 on:
   push:
-    branches:
-      - main
     paths:
       - the_project/**
       - overlays/gke/**
@@ -19,6 +17,7 @@ env:
   GKE_ZONE: europe-north1-b
   REGISTRY: europe-north1-docker.pkg.dev
   REPOSITORY: my-repository
+  BRANCH: ${{ github.ref_name }}
 
 jobs:
   build-publish-deploy:
@@ -47,11 +46,19 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
           location: ${{ env.GKE_ZONE }}
 
+      - name: Choose the namespace
+        run: |
+          if [ "$BRANCH" = "main" ]; then
+            echo "NAMESPACE=project" >> "$GITHUB_ENV"
+          else
+            echo "NAMESPACE=$BRANCH" >> "$GITHUB_ENV"
+          fi
+
       - name: Form image names
         run: |
-          echo "TODO_APP_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-app:main-$GITHUB_SHA" >> "$GITHUB_ENV"
-          echo "TODO_BACKEND_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-backend:main-$GITHUB_SHA" >> "$GITHUB_ENV"
-          echo "READ_WIKIPEDIA_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/read-wikipedia:main-$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "TODO_APP_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-app:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "TODO_BACKEND_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-backend:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "READ_WIKIPEDIA_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/read-wikipedia:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
 
       - name: Build
         run: |
@@ -71,11 +78,14 @@ jobs:
       - name: Deploy
         working-directory: overlays/gke
         run: |
+          kubectl create namespace "$NAMESPACE" || true
+          kubectl config set-context --current --namespace="$NAMESPACE"
+          kustomize edit set namespace "$NAMESPACE"
           kustomize edit set image \
             todo-app="$TODO_APP_TAG" \
             todo-backend="$TODO_BACKEND_TAG" \
             read-wikipedia="$READ_WIKIPEDIA_TAG"
           kustomize build . | kubectl apply -f -
-          kubectl rollout status deployment/todo-app -n project
-          kubectl rollout status deployment/todo-backend -n project
-          kubectl rollout status statefulset/postgres -n project
+          kubectl rollout status deployment/todo-app -n "$NAMESPACE"
+          kubectl rollout status deployment/todo-backend -n "$NAMESPACE"
+          kubectl rollout status statefulset/postgres -n "$NAMESPACE"

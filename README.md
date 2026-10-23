@@ -44,6 +44,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 ### Deployment Pipeline
 
 - [3.6.](https://github.com/daxv72/KubernetesSubmissions/tree/3.6/the_project)
+- [3.7.](https://github.com/daxv72/KubernetesSubmissions/tree/3.7/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -887,6 +888,20 @@ Il workflow è `.github/workflows/project.yaml`. Parte a ogni push su `main` che
 L'autenticazione è Workload Identity, senza chiave nel repository. I secret dell'environment `GKE_PROJECT` sono `GKE_PROJECT`, `WORKLOAD_IDENTITY_PROVIDER` e `SERVICE_ACCOUNT`. Non sono stati creati: il service account, il pool e il provider del capitolo restano comandi da lanciare solo su un progetto Google vero. Senza quei secret il job si ferma all'autenticazione e non crea risorse.
 
 `todo-app` monta un volume `ReadWriteOnce`. La strategia del Deployment è `Recreate`: Kubernetes spegne il Pod vecchio prima di crearne uno nuovo. Con `RollingUpdate` il Pod nuovo resterebbe Pending, perché il volume può essere montato da un solo Pod. Postgres è uno StatefulSet con una replica e non ha questo problema.
+
+## Esercizio 3.7 — un namespace per branch
+
+Il branch `main` resta nel namespace `project`. Ogni altro branch usa come namespace il proprio nome. Il capitolo permette di assumere che quel nome sia un namespace valido.
+
+Nel passo Deploy il workflow crea il namespace, poi `kustomize edit set namespace` sposta tutti i manifest. Il tag delle immagini è `<branch>-<sha>`, così due branch non si sovrascrivono nel registry.
+
+```bash
+if [ "$BRANCH" = "main" ]; then NAMESPACE=project; else NAMESPACE="$BRANCH"; fi
+kubectl create namespace "$NAMESPACE" || true
+kustomize edit set namespace "$NAMESPACE"
+```
+
+La cancellazione del namespace quando il branch viene eliminato è l'esercizio 3.8. Non è in questo workflow.
 
 
 
