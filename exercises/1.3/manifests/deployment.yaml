@@ -66,6 +66,26 @@ spec:
           ports:
             - name: http
               containerPort: 3000
+          # Ready only when Ping-pong returns the counter. The writer has no
+          # probe, so the Pod stays 1/2 until this check passes.
+          # urllib hangs on this cluster; a short TCP client does not.
+          # The first SYN to a ClusterIP is often dropped, so allow 5s.
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - |
+                  import socket
+                  sock = socket.create_connection(("ping-pong", 3000), 5)
+                  sock.settimeout(5)
+                  sock.sendall(b"GET /pings HTTP/1.0\r\nHost: ping-pong\r\n\r\n")
+                  data = sock.recv(64)
+                  sock.close()
+                  if b" 200 " not in data:
+                      raise SystemExit(1)
+            periodSeconds: 20
+            timeoutSeconds: 15
           volumeMounts:
             - name: shared-log
               mountPath: /usr/src/app/files

@@ -51,6 +51,10 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 
 - [3.9.](https://github.com/daxv72/KubernetesSubmissions/tree/3.9/the_project)
 
+### Update strategies
+
+- [4.1.](https://github.com/daxv72/KubernetesSubmissions/tree/4.1/exercises/4.1)
+
 ## Comandi usati per l'esercizio 1.1
 
 App **Log output** in `exercises/1.1`. All'avvio genera una stringa casuale, la tiene in memoria e la stampa ogni 5 secondi con un timestamp UTC.
@@ -931,7 +935,47 @@ La risposta sta in [`the_project/README.md`](the_project/README.md). Il progetto
 Per questa applicazione resta il database nostro: i manifest ci sono, ogni branch ha il suo database, il costo extra è un disco piccolo. Backup e failover sono lavoro ancora da fare. Cloud SQL ha senso quando backup giornalieri, ripristino a un istante e failover devono essere impostazioni. Setup e istanza sempre accesa sono il motivo per lasciarlo dopo.
 
 
+## Esercizio 4.1 — readiness probe
 
+Ping-pong diventa pronto solo dopo la connessione a Postgres. Il processo apre la porta 3000 dopo `connect()`. La probe è `httpGet` su `/pings` e non incrementa il contatore.
+
+Log output ha due container. `log-writer` non ha probe e conta come pronto. `log-reader` è pronto solo se `http://ping-pong:3000/pings` risponde. Prima del database il Pod resta `1/2`.
+
+Il cluster k3d è stato ricreato senza Traefik, con Envoy. Le immagini locali non c'erano più, quindi vanno ricostruite e importate una alla volta.
+
+```bash
+docker build -t log-writer:1.11 exercises/1.3/writer
+docker build -t log-reader:2.5 exercises/1.3/reader
+docker build -t ping-pong:3.4 exercises/1.9
+docker pull postgres:18.0
+k3d image import log-writer:1.11 -c k3s-default
+k3d image import log-reader:2.5 -c k3s-default
+k3d image import ping-pong:3.4 -c k3s-default
+k3d image import postgres:18.0 -c k3s-default
+
+kubectl apply -f exercises/2.7/secret.yaml
+kubectl apply -f exercises/2.5/configmap.yaml
+kubectl apply -f exercises/1.9/manifests/service.yaml
+kubectl apply -f exercises/1.3/manifests/service.yaml
+kubectl apply -f exercises/1.9/manifests/deployment.yaml
+kubectl apply -f exercises/1.3/manifests/deployment.yaml
+kubectl get po -n exercises
+```
+
+Senza lo StatefulSet: Ping-pong `0/1`, Log output `1/2`. Poi si aggiunge il database:
+
+```bash
+kubectl apply -f exercises/2.7/statefulset.yaml
+kubectl rollout status statefulset/postgres -n exercises
+kubectl get po -n exercises
+```
+
+Ping-pong passa a `1/1` e Log output a `2/2`.
+
+# K3S con Gateway API ENVOY
+k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0
+kubectl apply --server-side -f https://github.com/envoyproxy/gateway/releases/latest/download/install.yaml
+kubectl -n envoy-gateway-system rollout status deployment/envoy-gateway --timeout=180s
 
 
 

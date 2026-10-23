@@ -46,6 +46,14 @@ spec:
           ports:
             - name: http
               containerPort: 3000
+          # The process listens only after Postgres accepts a connection.
+          # /pings does not increment the counter.
+          readinessProbe:
+            httpGet:
+              path: /pings
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
           resources:
             requests:
               cpu: 10m
