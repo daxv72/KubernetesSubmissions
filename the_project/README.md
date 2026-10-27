@@ -47,3 +47,19 @@ The image is `todo-backup:3.10`. The service-account key is the Secret `storage-
 ## Exercise 3.11 — requests and limits
 
 Every container has requests and limits. On a local cluster `kubectl top pods -n project --containers` showed todo-app at 1m/12Mi, todo-backend at 3m/23Mi and postgres at 11m/30Mi, all inside their limits, with no restarts. A one-off read-wikipedia Job completed inside 50m/64Mi. The backup CronJob was not run, because its key is not on the cluster. Its limit is higher because the container runs `pg_dump` and the Storage client.
+
+## Exercise 3.12 — logs for a new todo
+
+GKE sends container stdout and stderr to Cloud Logging as resource `k8s_container`, log name `stdout`. Open the cluster Logs tab, or Workloads → `todo-backend` → Container logs. In Logs Explorer:
+
+```text
+resource.type="k8s_container"
+resource.labels.cluster_name="dwk-cluster"
+resource.labels.namespace_name="project"
+resource.labels.container_name="todo-backend"
+textPayload:"todo accepted"
+```
+
+The backend prints `todo accepted length=... text=...` for each stored todo. The picture is that stdout from the local cluster after creating `3.12 created from the cluster`. Monitoring was not enabled on a paid Google project. The same line is what GKE would store. See [View GKE logs](https://cloud.google.com/kubernetes-engine/docs/how-to/view-logs).
+
+![Log when a todo is created](todo-created-log.png)

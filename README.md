@@ -52,6 +52,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [3.9.](https://github.com/daxv72/KubernetesSubmissions/tree/3.9/the_project)
 - [3.10.](https://github.com/daxv72/KubernetesSubmissions/tree/3.10/the_project)
 - [3.11.](https://github.com/daxv72/KubernetesSubmissions/tree/3.11/the_project)
+- [3.12.](https://github.com/daxv72/KubernetesSubmissions/tree/3.12/the_project)
 
 ### Update strategies
 
@@ -983,6 +984,24 @@ todo-backend   3m   23Mi
 | todo-backup | 50m / 128Mi | 500m / 256Mi | non eseguito: manca la chiave |
 
 Il Job di prova è `kubectl create job -n project read-wikipedia-now --from=cronjob/read-wikipedia`. Ha salvato un todo e si è chiuso. I limiti restano sopra l'uso misurato, così un picco non uccide il container e la request non piazza il database su un nodo già pieno.
+
+## Esercizio 3.12 — log di un todo nuovo
+
+Su GKE i log di stdout e stderr dei container finiscono in Cloud Logging, risorsa `k8s_container`, log `stdout`. Non ho acceso il monitoring su un progetto Google: il cluster a pagamento non c'è. La guida è [View GKE logs](https://cloud.google.com/kubernetes-engine/docs/how-to/view-logs).
+
+In console: Kubernetes Engine, cluster `dwk-cluster`, scheda Logs. Oppure Workloads, `todo-backend`, Container logs. In Logs Explorer la query è:
+
+```text
+resource.type="k8s_container"
+resource.labels.cluster_name="dwk-cluster"
+resource.labels.namespace_name="project"
+resource.labels.container_name="todo-backend"
+textPayload:"todo accepted"
+```
+
+La riga la scrive il backend a ogni POST accettato: `todo accepted length=... text=...`. Sul cluster locale ho creato il todo `3.12 created from the cluster`. L'immagine è lo stdout di quel momento, la stessa riga che GKE metterebbe nel log `stdout`.
+
+![Log di un todo creato](the_project/todo-created-log.png)
 
 
 ## Esercizio 4.1 — readiness probe
