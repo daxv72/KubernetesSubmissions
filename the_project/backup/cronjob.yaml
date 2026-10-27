@@ -1,0 +1,63 @@
+# Once a day at 03:00 UTC. The dump is uploaded to Cloud Storage.
+# The key file comes from the Secret storage-sa-key, created on the cluster
+# and never committed.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: todo-backup
+  namespace: project
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: todo-backup:3.10
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - configMapRef:
+                    name: todo-backup-config
+              env:
+                - name: GOOGLE_APPLICATION_CREDENTIALS
+                  value: /var/secrets/google/key.json
+                - name: PGHOST
+                  value: postgres
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-auth
+                      key: POSTGRES_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-auth
+                      key: POSTGRES_PASSWORD
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-auth
+                      key: POSTGRES_DB
+              volumeMounts:
+                - name: storage-sa-key
+                  mountPath: /var/secrets/google
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+          volumes:
+            - name: storage-sa-key
+              secret:
+                secretName: storage-sa-key

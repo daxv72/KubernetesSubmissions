@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-backup-config
+  namespace: project
+data:
+  # Globally unique on real Cloud Storage. Create the bucket before the first run.
+  BACKUP_BUCKET: todo-backups

@@ -50,6 +50,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 ### GKE features
 
 - [3.9.](https://github.com/daxv72/KubernetesSubmissions/tree/3.9/the_project)
+- [3.10.](https://github.com/daxv72/KubernetesSubmissions/tree/3.10/the_project)
 
 ### Update strategies
 
@@ -933,6 +934,33 @@ La risposta sta in [`the_project/README.md`](the_project/README.md). Il progetto
 **Backup.** Nel progetto non c'è un backup salvato. Il Job `pg_dump` della parte 3 produceva il dump e non lo conservava. Un backup utile è un CronJob che esegue `pg_dump` e carica il file. Il ripristino è scaricare il file e passarlo a `psql`, e va provato. Uno snapshot del disco GKE ha meno passi. Uno snapshot di Postgres mentre scrive può essere incoerente. Cloud SQL fa un backup automatico al giorno. Su un'istanza Enterprise creata dalla console li tiene 7 giorni (15 su Enterprise Plus). La conservazione si imposta da 1 a 365 giorni. I backup a richiesta restano finché non li cancelliamo. Il point-in-time recovery ripete i write-ahead log fino a un istante e crea un'istanza nuova. Dalla console è acceso di default su Enterprise. Con gcloud, Terraform o l'Admin API va acceso a mano. Non scriviamo lo script di restore. Il prezzo è lo storage dei backup, e la prima accensione del point-in-time recovery riavvia l'istanza.
 
 Per questa applicazione resta il database nostro: i manifest ci sono, ogni branch ha il suo database, il costo extra è un disco piccolo. Backup e failover sono lavoro ancora da fare. Cloud SQL ha senso quando backup giornalieri, ripristino a un istante e failover devono essere impostazioni. Setup e istanza sempre accesa sono il motivo per lasciarlo dopo.
+
+## Esercizio 3.10 — backup giornaliero su Cloud Storage
+
+Il CronJob `todo-backup` sta in `the_project/backup/cronjob.yaml`. Parte ogni giorno alle 03:00 UTC (`0 3 * * *`). `pg_dump` legge il database `todos` dal Service `postgres` e lo carica nel bucket del ConfigMap `todo-backup-config`, con nome `todos/todos-<timestamp>.sql`.
+
+L'immagine è `todo-backup:3.10`: Postgres 18, così `pg_dump` coincide col server, più il client Python di Cloud Storage. Il workflow di deploy la costruisce e la pubblica insieme alle altre.
+
+La chiave del service account non è nel repository. Si crea sul cluster, dopo averla generata su un progetto Google vero. Quei comandi `gcloud iam` non sono stati eseguiti.
+
+```bash
+kubectl create secret generic storage-sa-key \
+  --namespace project \
+  --from-file=key.json=key.json
+```
+
+Il file montato è `/var/secrets/google/key.json`. Senza quel Secret il Job non parte.
+
+Il bucket va creato prima, con un nome unico. `todo-backups` nel ConfigMap è il nome locale. Su Google va cambiato.
+
+Per una prova subito, senza aspettare le 03:00:
+
+```bash
+kubectl create job -n project todo-backup-now --from=cronjob/todo-backup
+kubectl logs -n project job/todo-backup-now
+```
+
+Su Floci il client parla con l'emulatore se `STORAGE_EMULATOR_HOST` punta a `localhost:4588`. Il CronJob nel repository non ha quella variabile: su GKE usa la chiave e l'API vera.
 
 
 ## Esercizio 4.1 — readiness probe

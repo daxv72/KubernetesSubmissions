@@ -37,3 +37,9 @@ Sources: [backup options](https://docs.cloud.google.com/sql/docs/postgres/backup
 DIY fits a single-replica todo list on a small cluster: the manifests exist, a branch gets its own database, and the extra cost is a small disk. Backups and failover remain work we still have to add.
 
 Cloud SQL fits a database we do not want to operate. Daily backups, restore to a point in time and failover are settings. The setup and the always-on instance price are the reason to leave it for later.
+
+## Exercise 3.10 — daily backup
+
+CronJob `todo-backup` runs at 03:00 UTC. It dumps the database `todos` with `pg_dump` and uploads `todos/todos-<timestamp>.sql` to the bucket named in the ConfigMap `todo-backup-config`.
+
+The image is `todo-backup:3.10`. The service-account key is the Secret `storage-sa-key`, mounted at `/var/secrets/google/key.json`. Create that Secret on the cluster. It is not in this repository, and the GitHub Action does not create it.
