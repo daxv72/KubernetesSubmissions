@@ -43,3 +43,7 @@ Cloud SQL fits a database we do not want to operate. Daily backups, restore to a
 CronJob `todo-backup` runs at 03:00 UTC. It dumps the database `todos` with `pg_dump` and uploads `todos/todos-<timestamp>.sql` to the bucket named in the ConfigMap `todo-backup-config`.
 
 The image is `todo-backup:3.10`. The service-account key is the Secret `storage-sa-key`, mounted at `/var/secrets/google/key.json`. Create that Secret on the cluster. It is not in this repository, and the GitHub Action does not create it.
+
+## Exercise 3.11 — requests and limits
+
+Every container has requests and limits. On a local cluster `kubectl top pods -n project --containers` showed todo-app at 1m/12Mi, todo-backend at 3m/23Mi and postgres at 11m/30Mi, all inside their limits, with no restarts. A one-off read-wikipedia Job completed inside 50m/64Mi. The backup CronJob was not run, because its key is not on the cluster. Its limit is higher because the container runs `pg_dump` and the Storage client.

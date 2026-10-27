@@ -22,6 +22,7 @@ spec:
               envFrom:
                 - configMapRef:
                     name: read-wikipedia-config
+              # One run completed with no restart inside this limit.
               resources:
                 requests:
                   cpu: 10m

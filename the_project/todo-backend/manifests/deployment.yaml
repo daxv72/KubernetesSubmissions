@@ -27,6 +27,7 @@ spec:
           ports:
             - name: http
               containerPort: 3000
+          # Idle on k3d: 3m CPU, 23Mi. The memory limit covers a request to Postgres.
           resources:
             requests:
               cpu: 10m

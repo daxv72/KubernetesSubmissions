@@ -51,6 +51,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 
 - [3.9.](https://github.com/daxv72/KubernetesSubmissions/tree/3.9/the_project)
 - [3.10.](https://github.com/daxv72/KubernetesSubmissions/tree/3.10/the_project)
+- [3.11.](https://github.com/daxv72/KubernetesSubmissions/tree/3.11/the_project)
 
 ### Update strategies
 
@@ -961,6 +962,27 @@ kubectl logs -n project job/todo-backup-now
 ```
 
 Su Floci il client parla con l'emulatore se `STORAGE_EMULATOR_HOST` punta a `localhost:4588`. Il CronJob nel repository non ha quella variabile: su GKE usa la chiave e l'API vera.
+
+## Esercizio 3.11 — request e limit
+
+Ogni container del progetto ha `requests` e `limits`. I numeri sono quelli già nei manifest. Sul cluster k3d i tre Pod lunghi sono partiti senza restart.
+
+```text
+kubectl top pods -n project --containers
+postgres      11m   30Mi
+todo-app       1m   12Mi
+todo-backend   3m   23Mi
+```
+
+| Container | request | limit | misurato |
+| --- | --- | --- | --- |
+| todo-app | 10m / 32Mi | 50m / 64Mi | 1m / 12Mi |
+| todo-backend | 10m / 32Mi | 50m / 128Mi | 3m / 23Mi |
+| postgres | 50m / 128Mi | 500m / 256Mi | 11m / 30Mi |
+| read-wikipedia | 10m / 32Mi | 50m / 64Mi | Job completato, 0 restart |
+| todo-backup | 50m / 128Mi | 500m / 256Mi | non eseguito: manca la chiave |
+
+Il Job di prova è `kubectl create job -n project read-wikipedia-now --from=cronjob/read-wikipedia`. Ha salvato un todo e si è chiuso. I limiti restano sopra l'uso misurato, così un picco non uccide il container e la request non piazza il database su un nodo già pieno.
 
 
 ## Esercizio 4.1 — readiness probe

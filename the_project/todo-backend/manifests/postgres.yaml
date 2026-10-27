@@ -55,6 +55,7 @@ spec:
             # Postgres 18 stores data under /var/lib/postgresql/18/docker.
             - name: data
               mountPath: /var/lib/postgresql
+          # Idle on k3d: 11m CPU, 30Mi. The request keeps the database off a packed node.
           resources:
             requests:
               cpu: 50m

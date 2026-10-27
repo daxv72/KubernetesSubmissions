@@ -38,6 +38,7 @@ spec:
           volumeMounts:
             - name: image-cache
               mountPath: /usr/src/app/files
+          # Idle on k3d: 1m CPU, 12Mi. The limit stays above a page render.
           resources:
             requests:
               cpu: 10m
