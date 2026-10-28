@@ -10,6 +10,8 @@ The backend publishes `{"action", "id", "todo", "done"}` when a todo is saved or
 
 The default URL is the in-cluster Service `todo-webhook`. Replace `WEBHOOK_URL` to send the same body to another generic endpoint. A missing message is acceptable. A duplicate is not.
 
+Exercise 4.9 adds `BROADCAST_MODE`. `log` prints the status line and does not open a connection. `forward` is the post above. A missing or blank value is `forward`. Staging sets `log` and removes `WEBHOOK_URL`. The image tag is `todo-broadcaster:4.9`.
+
 ## Kubernetes
 
 From the repository root. The image is local, so k3d needs an import.

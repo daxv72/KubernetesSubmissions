@@ -1,0 +1,103 @@
+# Staging tracks main. The broadcaster only logs, and the database
+# backup CronJob is not installed. The Secret is applied outside Argo CD.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: staging
+resources:
+  - ../../../the_project
+patches:
+  - target:
+      kind: Namespace
+      name: project
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: project
+  - target:
+      kind: Secret
+      name: postgres-auth
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: postgres-auth
+  - target:
+      kind: CronJob
+      name: todo-backup
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: todo-backup
+  - target:
+      kind: ConfigMap
+      name: todo-backup-config
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: todo-backup-config
+  - target:
+      kind: Deployment
+      name: todo-webhook
+    patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: todo-webhook
+  - target:
+      kind: Service
+      name: todo-webhook
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: todo-webhook
+  - target:
+      kind: ConfigMap
+      name: todo-webhook-config
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: todo-webhook-config
+  # The static volume todo-images is already bound in the namespace project.
+  - target:
+      kind: PersistentVolumeClaim
+      name: todo-image-claim
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: local-path
+  - target:
+      kind: ConfigMap
+      name: todo-backend-config
+    patch: |-
+      - op: replace
+        path: /data/NATS_SUBJECT
+        value: todos.staging
+  - target:
+      kind: ConfigMap
+      name: todo-broadcaster-config
+    patch: |-
+      - op: replace
+        path: /data/NATS_SUBJECT
+        value: todos.staging
+      - op: replace
+        path: /data/NATS_QUEUE
+        value: broadcasters-staging
+      - op: add
+        path: /data/BROADCAST_MODE
+        value: log
+      - op: remove
+        path: /data/WEBHOOK_URL
+      - op: remove
+        path: /data/WEBHOOK_USER

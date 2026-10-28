@@ -64,6 +64,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [4.6.](https://github.com/daxv72/KubernetesSubmissions/tree/4.6/the_project)
 - [4.7.](https://github.com/daxv72/KubernetesSubmissions/tree/4.7/exercises/4.7)
 - [4.8.](https://github.com/daxv72/KubernetesSubmissions/tree/4.8/exercises/4.8)
+- [4.9.](https://github.com/daxv72/KubernetesSubmissions/tree/4.9/exercises/4.9)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1174,6 +1175,33 @@ kubectl get application -n argocd project
 ```
 
 `the_project` è già su `main`, quindi il primo sync non aspetta il push di `exercises/4.8`.
+
+## Esercizio 4.9 — staging e production
+
+Due Application Argo CD, due namespace. Un commit su `main` aggiorna solo staging. Un tag Git aggiorna production. Argo CD risolve `targetRevision: "*"` solo sui tag, con le regole semver, e prende il tag più alto. `main` non è un tag, quindi production non segue ogni commit. Il tag `4.9` sposta production su quel commit. Finché il tag non c'è, l'Application `production` non trova il percorso `exercises/4.9/production`, perché l'ultimo tag è `4.8`.
+
+| Ambiente | Application | Namespace | Revisione | Broadcaster | Backup del database |
+| --- | --- | --- | --- | --- | --- |
+| Staging | `staging` | `staging` | branch `main` | `BROADCAST_MODE=log`. Scrive il messaggio nel log. Non chiama il webhook. Il Deployment `todo-webhook` non c'è. | Il CronJob `todo-backup` non c'è |
+| Production | `production` | `production` | ultimo tag semver | `BROADCAST_MODE=forward`. Fa POST su `todo-webhook`. | Il CronJob `todo-backup` resta |
+
+Gli subject NATS sono `todos.staging` e `todos.production`. Le code sono `broadcasters-staging` e `broadcasters-production`. Un messaggio di uno non arriva all'altro. Il Secret `postgres-auth` non è nel manifest che Argo CD applica. Va creato nel namespace prima che i Pod partano. La password è quella già presente nel namespace `project`. Il comando non stampa il valore.
+
+Il volume statico `todo-images` è già legato al claim nel namespace `project`. I due ambienti nuovi usano la StorageClass `local-path`.
+
+L'Application `project` dell'esercizio 4.8 non ha il finalizer delle risorse. Cancellarla lascia i Pod già in esecuzione nel namespace `project` e toglie `main` da quel namespace, così un commit non aggiorna anche quello.
+
+L'immagine è `todo-broadcaster:4.9`. Argo CD legge GitHub: staging si allinea dopo il push su `main`, production dopo il tag.
+
+```bash
+docker build -t todo-broadcaster:4.9 the_project/broadcaster
+k3d image import todo-broadcaster:4.9 -c k3s-default
+kubectl apply -f exercises/4.9/staging-application.yaml
+kubectl apply -f exercises/4.9/production-application.yaml
+kubectl -n argocd delete application project
+kubectl apply -k exercises/4.9/staging
+kubectl apply -k exercises/4.9/production
+```
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0

@@ -1,8 +1,13 @@
-"""Broadcaster — exercise 4.6.
+"""Broadcaster — exercise 4.6, with a log-only mode for exercise 4.9.
 
 Subscribes to the todo subject in a NATS queue group. Core NATS gives
 each message to one member of the group, so several replicas do not
-send the same status twice. The payload is posted to WEBHOOK_URL.
+send the same status twice.
+
+BROADCAST_MODE=forward posts the status to WEBHOOK_URL.
+BROADCAST_MODE=log prints the status and does not call another service.
+Staging sets log. A missing or blank variable means forward.
+Any other value stops the process.
 """
 
 import asyncio
@@ -22,11 +27,19 @@ def required(name: str) -> str:
     return value
 
 
+BROADCAST_MODE = os.environ.get("BROADCAST_MODE", "forward").strip() or "forward"
+if BROADCAST_MODE not in {"forward", "log"}:
+    raise SystemExit(f"BROADCAST_MODE must be forward or log, got {BROADCAST_MODE}")
+
 NATS_URL = required("NATS_URL")
 NATS_SUBJECT = required("NATS_SUBJECT")
 NATS_QUEUE = required("NATS_QUEUE")
-WEBHOOK_URL = required("WEBHOOK_URL")
-WEBHOOK_USER = required("WEBHOOK_USER")
+if BROADCAST_MODE == "forward":
+    WEBHOOK_URL = required("WEBHOOK_URL")
+    WEBHOOK_USER = required("WEBHOOK_USER")
+else:
+    WEBHOOK_URL = ""
+    WEBHOOK_USER = ""
 
 
 def status_message(event: dict) -> str:
@@ -61,6 +74,12 @@ async def handle(msg: Msg) -> None:
         print("Dropped a message that is not an object", flush=True)
         return
     message = status_message(event)
+    if BROADCAST_MODE == "log":
+        print(
+            f"Logged action={event.get('action')} id={event.get('id')}: {message}",
+            flush=True,
+        )
+        return
     try:
         await asyncio.to_thread(post_status, message)
     except (urllib.error.URLError, TimeoutError, OSError) as error:
@@ -83,7 +102,7 @@ async def main() -> None:
             await asyncio.sleep(2)
     await client.subscribe(NATS_SUBJECT, queue=NATS_QUEUE, cb=handle)
     print(
-        f"Subscribed to {NATS_SUBJECT} in queue {NATS_QUEUE}",
+        f"Subscribed to {NATS_SUBJECT} in queue {NATS_QUEUE} mode={BROADCAST_MODE}",
         flush=True,
     )
     while True:

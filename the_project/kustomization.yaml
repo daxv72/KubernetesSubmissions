@@ -27,7 +27,7 @@ images:
   - name: todo-backend
     newTag: "4.6"
   - name: todo-broadcaster
-    newTag: "4.6"
+    newTag: "4.9"
   - name: todo-webhook
     newTag: "4.6"
   - name: read-wikipedia

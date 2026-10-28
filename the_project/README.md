@@ -83,3 +83,9 @@ The page shows `Mark done` on an open todo. The button posts to todo-app at `/do
 Saving a todo and updating it publish `{"action", "id", "todo", "done"}` on the NATS subject `todos`. The server is the Helm release `my-nats` in the namespace `nats`, client port `4222`. A failed publish does not fail the HTTP request.
 
 `todo-broadcaster` has 6 replicas and subscribes in the queue group `broadcasters`. Core NATS delivers each message to one member, so the status is posted once. The post goes to `WEBHOOK_URL` as `{"user": "bot", "message": "A todo was created: ..."}` or `A todo was updated`. The default URL is the Service `todo-webhook`, which prints the body. Point `WEBHOOK_URL` at another generic endpoint to replace it. Images are `todo-backend:4.6`, `todo-broadcaster:4.6`, and `todo-webhook:4.6`.
+
+## Exercise 4.9 — staging and production
+
+`BROADCAST_MODE=log` prints the status and does not call `WEBHOOK_URL`. `BROADCAST_MODE=forward` keeps the post. A missing value means forward. The image is `todo-broadcaster:4.9`.
+
+The overlays are `exercises/4.9/staging` and `exercises/4.9/production`. Staging follows `main` and drops the CronJob `todo-backup` and the webhook. Production follows the latest semver Git tag and keeps both. Neither overlay contains the Secret `postgres-auth`. The subjects are `todos.staging` and `todos.production`.

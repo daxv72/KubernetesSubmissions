@@ -1,0 +1,24 @@
+# A new Git tag is applied to the namespace production.
+# "*" is a semver constraint. Argo CD resolves it against tags only, never against main.
+# The Secret postgres-auth is not in this directory. Apply it before the Pods start.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: production
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/daxv72/KubernetesSubmissions.git
+    targetRevision: "*"
+    path: exercises/4.9/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

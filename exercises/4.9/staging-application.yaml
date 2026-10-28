@@ -1,0 +1,23 @@
+# A commit on main is applied to the namespace staging.
+# The Secret postgres-auth is not in this directory. Apply it before the Pods start.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/daxv72/KubernetesSubmissions.git
+    targetRevision: main
+    path: exercises/4.9/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
