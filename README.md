@@ -59,6 +59,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [4.1.](https://github.com/daxv72/KubernetesSubmissions/tree/4.1/exercises/4.1)
 - [4.2.](https://github.com/daxv72/KubernetesSubmissions/tree/4.2/the_project)
 - [4.3.](https://github.com/daxv72/KubernetesSubmissions/tree/4.3/exercises/4.3)
+- [4.4.](https://github.com/daxv72/KubernetesSubmissions/tree/4.4/exercises/4.4)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1085,6 +1086,22 @@ sum(kube_pod_info{namespace="prometheus",created_by_kind="StatefulSet"})
 Sul cluster la query restituisce `3`. Le tre serie sono `counted-0`, `counted-1`, `counted-2`. Il chart del capitolo sta in `monitoring` e non crea StatefulSet in `prometheus`, quindi quei tre pod sono `exercises/4.3/statefulset.yaml`.
 
 Il Rollout canary è `exercises/4.3/rollout.yaml`: `flaky-update-dep`, immagine `mluukkai/dwk-app8:v1`, Service `flaky-update-svc` ClusterIP. L'immagine ha solo il manifest linux/amd64. I nodi k3d sono arm64, i pod restano in `ImagePullBackOff`.
+
+## Esercizio 4.4 — canary del Ping-pong
+
+Il controller di Argo Rollouts segue solo i Rollout, non i Deployment. Il ReplicaSet vecchio resta finché l'analisi non dice che la nuova versione va bene. L'AnalysisTemplate descrive la metrica. L'AnalysisRun è l'esecuzione agganciata a quel Rollout. Se l'AnalysisRun fallisce, il Rollout abortisce e il ReplicaSet nuovo torna a zero.
+
+Ping-pong è il Rollout `exercises/4.4/rollout.yaml`, al posto del Deployment. Dopo `setWeight: 50` parte `ping-pong-cpu`. La query è la somma dei rate di CPU di tutti i container nel namespace `exercises`, finestra di 5 minuti:
+
+```promql
+scalar(sum(rate(container_cpu_usage_seconds_total{namespace="exercises",container!=""}[5m])))
+```
+
+Prometheus è `http://prom-prometheus-server.monitoring.svc.cluster.local:80`. Il template fa 5 campioni, uno al minuto. `failureLimit: 1`. Sopra `0.001` core l'analisi fallisce.
+
+Sul cluster la stessa query valeva circa `0.017`, quindi `0.001` è sotto l'uso reale. Il passaggio a `ping-pong:4.4` ha creato l'AnalysisRun `ping-pong-7c485774d9-2-1`, stato Failed (`failed (2) > failureLimit (1)`). Il Rollout è rimasto `Degraded` / `RolloutAborted`. L'unico pod pronto ha tenuto `ping-pong:3.4`. Il ReplicaSet di `ping-pong:4.4` è a 0 repliche.
+
+Un limite sopra la misura, per esempio `0.5`, farebbe passare i cinque campioni.
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0

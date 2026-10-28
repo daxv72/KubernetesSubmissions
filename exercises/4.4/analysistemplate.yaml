@@ -1,0 +1,22 @@
+# Fails the canary when the exercises namespace burns more than 0.001 cores.
+# Measured sum(rate(...[5m])) was about 0.017, so this limit is low on purpose:
+# the update must not proceed.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ping-pong-cpu
+  namespace: exercises
+spec:
+  metrics:
+    - name: namespace-cpu
+      # Five samples, one minute apart: the check covers five minutes.
+      interval: 1m
+      count: 5
+      failureLimit: 1
+      successCondition: result <= 0.001
+      failureCondition: result > 0.001
+      provider:
+        prometheus:
+          address: http://prom-prometheus-server.monitoring.svc.cluster.local:80
+          query: |
+            scalar(sum(rate(container_cpu_usage_seconds_total{namespace="exercises",container!=""}[5m])))
