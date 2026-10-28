@@ -17,5 +17,6 @@ data:
   TODO_FIELD: todo
   MAX_LENGTH: "140"
   BREAK_PATH: /break
+  DONE_PATH: /done
   BACKEND_HEALTH_URL: http://todo-backend:2345/healthz
   BACKEND_BREAK_URL: http://todo-backend:2345/break

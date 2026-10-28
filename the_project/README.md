@@ -71,3 +71,9 @@ The backend prints `todo accepted length=... text=...` for each stored todo. The
 The backend Deployment probes `/healthz`. The startup probe covers the wait for Postgres. The readiness probe removes the Pod from the Service. After three 500 responses, five seconds apart, the liveness probe restarts the container. The Pod keeps its name and `RESTARTS` increases. A new process starts with the flag set. See [configure liveness, readiness and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/).
 
 The process is PID 1, so it exits on `SIGTERM` instead of waiting out the 30 second grace period. Images are `todo-app:4.2` and `todo-backend:4.2`.
+
+## Exercise 4.5 — done field
+
+`GET /todos` returns objects `{"id", "todo", "done"}`. `PUT /todos/<id>` with `{"done": true}` or `{"done": false}` updates that row. An empty body sets `done` to true. A new todo is stored with `done` false. The column is added on startup when the table already exists.
+
+The page shows `Mark done` on an open todo. The button posts to todo-app at `/done/<id>`, because an HTML form cannot send PUT. Todo-app then calls `PUT /todos/<id>` on the backend. A finished todo is struck through and labelled `Done`. Images are `todo-app:4.5` and `todo-backend:4.5`.

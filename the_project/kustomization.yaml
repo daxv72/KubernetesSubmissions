@@ -18,9 +18,9 @@ resources:
   - backup/cronjob.yaml
 images:
   - name: todo-app
-    newTag: "4.2"
+    newTag: "4.5"
   - name: todo-backend
-    newTag: "4.2"
+    newTag: "4.5"
   - name: read-wikipedia
     newTag: "2.9"
   - name: todo-backup

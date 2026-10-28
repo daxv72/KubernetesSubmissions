@@ -1,8 +1,9 @@
-"""Todo backend — exercise 2.10, health check from exercise 4.2.
+"""Todo backend — exercise 2.10, health check from 4.2, done field from 4.5.
 
-GET and POST for the todo list. The path, port, length limit, and
-database address come from environment variables. The list is stored
-in Postgres. Every POST is printed to stdout so Loki can show it.
+GET and POST for the todo list. PUT /todos/<id> sets the done field.
+The path, port, length limit, and database address come from environment
+variables. The list is stored in Postgres. Every POST is printed to stdout
+so Loki can show it.
 
 GET /healthz returns 200 only when the in-memory flag is healthy and
 Postgres answers SELECT 1. POST /break clears the flag. The liveness
@@ -77,9 +78,14 @@ def ensure_table(opened: pg8000.native.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS todos (
             id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-            content text NOT NULL
+            content text NOT NULL,
+            done boolean NOT NULL DEFAULT false
         )
         """
+    )
+    # Tables created before exercise 4.5 have no done column.
+    opened.run(
+        "ALTER TABLE todos ADD COLUMN IF NOT EXISTS done boolean NOT NULL DEFAULT false"
     )
     count = int(opened.run("SELECT count(*) FROM todos")[0][0])
     if count != 0:
@@ -123,13 +129,50 @@ def database_ok() -> bool:
         return False
 
 
-def list_todos() -> list[str]:
-    rows = query("SELECT content FROM todos ORDER BY id")
-    return [str(row[0]) for row in rows]
+def todo_row(row: list) -> dict:
+    return {"id": int(row[0]), "todo": str(row[1]), "done": bool(row[2])}
+
+
+def list_todos() -> list[dict]:
+    rows = query("SELECT id, content, done FROM todos ORDER BY id")
+    return [todo_row(row) for row in rows]
 
 
 def add_todo(text: str) -> None:
     query("INSERT INTO todos (content) VALUES (:content)", content=text)
+
+
+def set_done(todo_id: int, done: bool) -> dict | None:
+    rows = query(
+        """
+        UPDATE todos
+        SET done = :done
+        WHERE id = :id
+        RETURNING id, content, done
+        """,
+        done=done,
+        id=todo_id,
+    )
+    if not rows:
+        return None
+    return todo_row(rows[0])
+
+
+def done_flag(content_type: str, raw: bytes) -> bool | None:
+    """True when the body is empty. None when JSON is present but unusable."""
+    if not raw:
+        return True
+    if "application/json" not in content_type:
+        return True
+    try:
+        payload = json.loads(raw.decode())
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict) or "done" not in payload:
+        return True
+    if isinstance(payload["done"], bool):
+        return payload["done"]
+    return None
 
 
 def todo_text(content_type: str, raw: bytes) -> str | None:
@@ -222,6 +265,32 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Location", REDIRECT_URL)
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def do_PUT(self) -> None:
+        path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        prefix = TODO_PATH.rstrip("/") + "/"
+        if not path.startswith(prefix):
+            self.send_error(404)
+            return
+        ident = path[len(prefix):]
+        if not ident.isdigit():
+            self.send_error(404)
+            return
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length) if length else b""
+        done = done_flag(self.headers.get("Content-Type", ""), raw)
+        if done is None:
+            self.send_json(400, b'{"error":"done must be a boolean"}')
+            return
+        updated = set_done(int(ident), done)
+        if updated is None:
+            self.send_json(404, b'{"error":"not found"}')
+            return
+        print(
+            f"todo done id={updated['id']} value={str(updated['done']).lower()}",
+            flush=True,
+        )
+        self.send_json(200, json.dumps(updated).encode())
 
     def log_message(self, fmt: str, *args) -> None:
         print(f"{self.address_string()} {fmt % args}", flush=True)

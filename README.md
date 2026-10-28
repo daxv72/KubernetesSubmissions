@@ -60,6 +60,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [4.2.](https://github.com/daxv72/KubernetesSubmissions/tree/4.2/the_project)
 - [4.3.](https://github.com/daxv72/KubernetesSubmissions/tree/4.3/exercises/4.3)
 - [4.4.](https://github.com/daxv72/KubernetesSubmissions/tree/4.4/exercises/4.4)
+- [4.5.](https://github.com/daxv72/KubernetesSubmissions/tree/4.5/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1102,6 +1103,25 @@ Prometheus è `http://prom-prometheus-server.monitoring.svc.cluster.local:80`. I
 Sul cluster la stessa query valeva circa `0.017`, quindi `0.001` è sotto l'uso reale. Il passaggio a `ping-pong:4.4` ha creato l'AnalysisRun `ping-pong-7c485774d9-2-1`, stato Failed (`failed (2) > failureLimit (1)`). Il Rollout è rimasto `Degraded` / `RolloutAborted`. L'unico pod pronto ha tenuto `ping-pong:3.4`. Il ReplicaSet di `ping-pong:4.4` è a 0 repliche.
 
 Un limite sopra la misura, per esempio `0.5`, farebbe passare i cinque campioni.
+
+## Esercizio 4.5 — campo Done
+
+Ogni todo ha `id`, `todo` e `done`. `GET /todos` restituisce quegli oggetti. `PUT /todos/<id>` aggiorna il campo. Il corpo è `{"done": true}` oppure `{"done": false}`. Un corpo vuoto mette `done` a true. Un id assente risponde 404. Un todo nuovo nasce con `done` false. All'avvio, se la tabella esiste già, il backend aggiunge la colonna `done`.
+
+La pagina mostra `Mark done` sui todo aperti. Il bottone fa POST verso todo-app su `/done/<id>`, perché un form HTML non può mandare PUT. Todo-app chiama `PUT http://todo-backend:2345/todos/<id>` con `{"done": true}`. Il todo chiuso resta barrato, con la scritta verde `Done`. Il bottone `break the app` resta dov'era.
+
+Immagini locali `todo-app:4.5` e `todo-backend:4.5`. Sul cluster k3d:
+
+```bash
+docker build -t todo-backend:4.5 the_project/todo-backend
+docker build -t todo-app:4.5 the_project/todo-app
+k3d image import todo-backend:4.5 -c k3s-default
+k3d image import todo-app:4.5 -c k3s-default
+kubectl apply -k the_project
+kubectl port-forward -n project svc/todo-app 18080:3000
+```
+
+Poi http://localhost:18080/. Un click su `Mark done` lascia il todo barrato anche dopo un reload.
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0

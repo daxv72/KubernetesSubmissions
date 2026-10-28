@@ -1,10 +1,12 @@
-"""Todo app — exercise 2.6, break button from exercise 4.2.
+"""Todo app — exercise 2.6, break button from 4.2, done field from 4.5.
 
 GET / is an HTML page with a picture and the todo list from todo-backend.
 Ports, URLs, and the other settings come from environment variables.
 
 POST /break tells the backend to fail /healthz. Until that endpoint
 returns 200 again, GET / is the System Failure page.
+
+POST /done/<id> sends PUT /todos/<id> with {"done": true} to the backend.
 """
 
 import html
@@ -34,6 +36,7 @@ FORM_ACTION = required("FORM_ACTION")
 TODO_FIELD = required("TODO_FIELD")
 MAX_LENGTH = required("MAX_LENGTH")
 BREAK_PATH = required("BREAK_PATH")
+DONE_PATH = required("DONE_PATH")
 BACKEND_HEALTH_URL = required("BACKEND_HEALTH_URL")
 BACKEND_BREAK_URL = required("BACKEND_BREAK_URL")
 
@@ -109,7 +112,7 @@ def mark_unhealthy() -> None:
         print(f"Break request failed: {error}", flush=True)
 
 
-def fetch_todos() -> list[str]:
+def fetch_todos() -> list[dict]:
     # Service DNS name. The browser does not call this URL.
     try:
         with urllib.request.urlopen(TODO_BACKEND_URL, timeout=2) as response:
@@ -118,11 +121,51 @@ def fetch_todos() -> list[str]:
         return []
     if not isinstance(data, list):
         return []
-    return [item for item in data if isinstance(item, str)]
+    todos = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("todo", "")
+        ident = item.get("id")
+        if not isinstance(text, str) or not isinstance(ident, int):
+            continue
+        todos.append({"id": ident, "todo": text, "done": bool(item.get("done", False))})
+    return todos
 
 
-def html_page(todos: list[str]) -> bytes:
-    items = "\n".join(f"    <li>{html.escape(todo)}</li>" for todo in todos)
+def mark_done(todo_id: int) -> None:
+    # HTML forms cannot send PUT. This process calls the backend with PUT.
+    url = TODO_BACKEND_URL.rstrip("/") + f"/{todo_id}"
+    request = urllib.request.Request(
+        url,
+        data=b'{"done":true}',
+        method="PUT",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=2) as response:
+            response.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        print(f"Mark done failed for id {todo_id}: {error}", flush=True)
+
+
+def todo_item(todo: dict) -> str:
+    text = html.escape(todo["todo"])
+    if todo["done"]:
+        return (
+            f'    <li class="done"><span class="text">{text}</span>'
+            f'<span class="state">Done</span></li>'
+        )
+    action = html.escape(f"{DONE_PATH}/{todo['id']}", quote=True)
+    return (
+        f'    <li><span class="text">{text}</span>'
+        f'<form action="{action}" method="post">'
+        f'<button class="mark" type="submit">Mark done</button></form></li>'
+    )
+
+
+def html_page(todos: list[dict]) -> bytes:
+    items = "\n".join(todo_item(todo) for todo in todos)
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -193,12 +236,45 @@ def html_page(todos: list[str]) -> bytes:
       text-align: left;
     }
     li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
       background: #fff;
       border-left: 6px solid #43a047;
       border-radius: 4px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
       margin: 0 0 0.7rem;
-      padding: 1rem 1rem 1rem 1.1rem;
+      padding: 0.85rem 1rem 0.85rem 1.1rem;
+    }
+    li .text {
+      flex: 1;
+    }
+    li form {
+      margin: 0;
+    }
+    button.mark {
+      background: #1e88e5;
+      border-radius: 4px;
+      padding: 0.55rem 0.95rem;
+      white-space: nowrap;
+    }
+    li.done {
+      background: #f6f6f6;
+      border-left-color: #cfcfcf;
+    }
+    li.done .text {
+      color: #9e9e9e;
+      text-decoration: line-through;
+    }
+    li .state {
+      color: #43a047;
+      font-weight: 700;
+      padding-right: 0.35rem;
+    }
+    p.course {
+      margin: 2.4rem 0 0;
+      color: #9e9e9e;
     }
   </style>
 </head>
@@ -216,6 +292,7 @@ __TODO_ITEMS__
   <form class="break" action="__BREAK_PATH__" method="post">
     <button class="break" type="submit">break the app</button>
   </form>
+  <p class="course">DevOps with Kubernetes 2026</p>
 </body>
 </html>
 """.replace("__TODO_ITEMS__", items).replace(
@@ -308,18 +385,26 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self) -> None:
-        path = self.path.split("?", 1)[0]
+        path = self.path.split("?", 1)[0].rstrip("/") or "/"
         length = int(self.headers.get("Content-Length", "0"))
         if length:
             self.rfile.read(length)
-        if path != BREAK_PATH:
-            self.send_error(404)
+        if path == BREAK_PATH:
+            mark_unhealthy()
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
             return
-        mark_unhealthy()
-        self.send_response(303)
-        self.send_header("Location", "/")
-        self.send_header("Content-Length", "0")
-        self.end_headers()
+        prefix = DONE_PATH.rstrip("/") + "/"
+        if path.startswith(prefix) and path[len(prefix):].isdigit():
+            mark_done(int(path[len(prefix):]))
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        self.send_error(404)
 
     def log_message(self, fmt: str, *args) -> None:
         print(f"{self.address_string()} {fmt % args}", flush=True)

@@ -2,8 +2,9 @@
 
 Exercise 2.10. The process runs in the namespace `project`. Ports, the todo path, and the length limit come from the ConfigMap `todo-backend-config`. Postgres host and port are in that ConfigMap too. User, password, and database name come from the Secret `postgres-auth`. The list is the table `todos`. Every POST is printed to stdout. A todo longer than `MAX_LENGTH` is rejected and the text is in that log line.
 
-- `GET /todos` returns a JSON array of strings.
-- `POST /todos` appends one todo. The body is form field `todo` or JSON `{"todo": "..."}`. Empty text and text longer than 140 characters are rejected. A successful form post redirects to `/`.
+- `GET /todos` returns a JSON array of objects: `{"id": 1, "todo": "...", "done": false}`.
+- `POST /todos` appends one todo with `done` false. The body is form field `todo` or JSON `{"todo": "..."}`. Empty text and text longer than 140 characters are rejected. A successful form post redirects to `/`.
+- `PUT /todos/<id>` sets the done field. The body is JSON `{"done": true}` or `{"done": false}`. An empty body sets `done` to true. A missing id returns 404.
 
 The Service port is `2345`. The container listens on `3000`. Todo-app calls `http://todo-backend:2345/todos` from inside the cluster. The browser posts to `/todos` through the Ingress in `the_project/todo-app`.
 

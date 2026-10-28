@@ -1,6 +1,6 @@
 # Todo app
 
-Exercise 2.6. The app runs in the namespace `project`. Ports, URLs, and the other settings come from the ConfigMap `todo-app-config`. `GET /` is an HTML page with the cached picture and the todo list.
+Exercise 2.6. The app runs in the namespace `project`. Ports, URLs, and the other settings come from the ConfigMap `todo-app-config`. `GET /` is an HTML page with the cached picture and the todo list. An open todo has a `Mark done` button. That form posts to `/done/<id>`, and this process sends `PUT /todos/<id>` with `{"done": true}` to the backend. A finished todo is shown struck through, with the label `Done`.
 
 `GET /image` serves the JPEG cached on the persistent volume from `exercises/1.12`. The same file is used for 10 minutes.
 
