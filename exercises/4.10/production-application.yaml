@@ -1,0 +1,24 @@
+# The latest semver tag of the configuration repository is applied to the namespace production.
+# "*" matches tags of KubernetesConfigurations, not tags of the code repository.
+# The Secret postgres-auth is applied outside Argo CD.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: production
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/daxv72/KubernetesConfigurations.git
+    targetRevision: "*"
+    path: production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

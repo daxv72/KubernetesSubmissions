@@ -65,6 +65,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [4.7.](https://github.com/daxv72/KubernetesSubmissions/tree/4.7/exercises/4.7)
 - [4.8.](https://github.com/daxv72/KubernetesSubmissions/tree/4.8/exercises/4.8)
 - [4.9.](https://github.com/daxv72/KubernetesSubmissions/tree/4.9/exercises/4.9)
+- [4.10.](https://github.com/daxv72/KubernetesSubmissions/tree/4.10/exercises/4.10)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1201,6 +1202,26 @@ kubectl apply -f exercises/4.9/production-application.yaml
 kubectl -n argocd delete application project
 kubectl apply -k exercises/4.9/staging
 kubectl apply -k exercises/4.9/production
+```
+
+## Esercizio 4.10 — codice e configurazione in due repository
+
+Il codice dell'applicazione resta in https://github.com/daxv72/KubernetesSubmissions. I manifest di staging e production stanno in https://github.com/daxv72/KubernetesConfigurations. Argo CD legge solo il secondo. Un commit sul codice non cambia il cluster. Un commit sui manifest non fa partire una build.
+
+| Ambiente | Application | Repository | Percorso | Revisione |
+| --- | --- | --- | --- | --- |
+| Staging | `staging` | KubernetesConfigurations | `staging` | `main` |
+| Production | `production` | KubernetesConfigurations | `production` | ultimo tag semver (`*`) |
+
+Il build Kustomize è lo stesso del 4.9. In staging il broadcaster scrive solo il log e il CronJob `todo-backup` non c'è. In production il broadcaster inoltra e il backup resta. Il Secret `postgres-auth` non è nel repository di configurazione.
+
+Il tag `4.10` di KubernetesConfigurations punta a quei manifest. `*` di production si risolve su quel tag. `main` di staging punta allo stesso commit.
+
+Il workflow `.github/workflows/update-config.yaml` parte quando `the_project` cambia su `main`, e anche quando si crea un tag. Copia i `newTag` di `the_project/kustomization.yaml` dentro `base/kustomization.yaml` del repository di configurazione. Un tag del repository di codice viene creato anche sull'altro repository, se lì non esiste già, così production lo segue. Il push avviene solo se esiste il secret `CONFIG_REPO_TOKEN`, con permesso di scrittura su KubernetesConfigurations. Il token non è nel repository. Senza quel secret il workflow termina senza aggiornare i manifest.
+
+```bash
+kubectl apply -f exercises/4.10/staging-application.yaml
+kubectl apply -f exercises/4.10/production-application.yaml
 ```
 
 # K3S con Gateway API ENVOY

@@ -1,0 +1,100 @@
+name: Update configuration repository
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+    paths:
+      - the_project/**
+
+permissions:
+  contents: read
+
+jobs:
+  update-config:
+    name: Copy image tags into the configuration repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code repository
+        uses: actions/checkout@v6
+        with:
+          path: code
+
+      - name: Check the configuration repository token
+        id: token
+        env:
+          CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
+        run: |
+          if [ -z "$CONFIG_REPO_TOKEN" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "CONFIG_REPO_TOKEN is not set. KubernetesConfigurations is not updated by this run."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout the configuration repository
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: daxv72/KubernetesConfigurations
+          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          ref: main
+          path: config
+
+      - name: Set up Kustomize
+        if: steps.token.outputs.present == 'true'
+        uses: imranismail/setup-kustomize@v3
+
+      - name: Copy image tags
+        if: steps.token.outputs.present == 'true'
+        working-directory: config/base
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+
+          source = pathlib.Path(os.environ["GITHUB_WORKSPACE"]) / "code" / "the_project" / "kustomization.yaml"
+          name = None
+          in_images = False
+          for line in source.read_text().splitlines():
+              if line.startswith("images:"):
+                  in_images = True
+                  continue
+              if not in_images:
+                  continue
+              if line and not line.startswith((" ", "-")):
+                  break
+              stripped = line.strip()
+              if stripped.startswith("- name:"):
+                  name = stripped.split(":", 1)[1].strip()
+              elif stripped.startswith("newTag:") and name:
+                  tag = stripped.split(":", 1)[1].strip().strip('"')
+                  subprocess.check_call(["kustomize", "edit", "set", "image", f"{name}:{tag}"])
+                  name = None
+          PY
+
+      - name: Push main and mirror a tag
+        if: steps.token.outputs.present == 'true'
+        working-directory: config
+        env:
+          CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet; then
+            git add base/kustomization.yaml
+            git commit -m "Set image tags from ${GITHUB_SHA}"
+            git push origin main
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            git fetch origin --tags
+            if git rev-parse -q --verify "refs/tags/${GITHUB_REF_NAME}" >/dev/null; then
+              echo "Tag ${GITHUB_REF_NAME} already exists on the configuration repository."
+            else
+              git tag "${GITHUB_REF_NAME}"
+              git push origin "${GITHUB_REF_NAME}"
+            fi
+          fi
