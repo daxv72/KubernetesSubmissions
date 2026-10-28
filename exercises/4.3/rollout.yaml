@@ -1,0 +1,56 @@
+# Canary rollout from the chapter. The first apply starts every replica at once.
+# A later image change walks the steps. ClusterIP: this k3d cluster has no cloud load balancer.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: flaky-update-dep
+  namespace: default
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: flaky-update
+  strategy:
+    canary:
+      steps:
+        - setWeight: 25
+        - pause:
+            duration: 30s
+        - setWeight: 50
+        - pause:
+            duration: 30s
+  template:
+    metadata:
+      labels:
+        app: flaky-update
+    spec:
+      containers:
+        - name: flaky-update
+          image: mluukkai/dwk-app8:v1
+          readinessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            httpGet:
+              path: /healthz
+              port: 3541
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            httpGet:
+              path: /healthz
+              port: 3541
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaky-update-svc
+  namespace: default
+spec:
+  selector:
+    app: flaky-update
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3541
+  type: ClusterIP

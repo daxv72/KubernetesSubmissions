@@ -58,6 +58,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 
 - [4.1.](https://github.com/daxv72/KubernetesSubmissions/tree/4.1/exercises/4.1)
 - [4.2.](https://github.com/daxv72/KubernetesSubmissions/tree/4.2/the_project)
+- [4.3.](https://github.com/daxv72/KubernetesSubmissions/tree/4.3/exercises/4.3)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1064,6 +1065,26 @@ kubectl port-forward -n project svc/todo-app 18080:3000
 Dopo il click, kubelet registra `Liveness probe failed: HTTP probe failed with statuscode: 500` e `Container todo-backend failed liveness probe, will be restarted`. Il Pod torna `1/1` con `RESTARTS` a 1 e la pagina dei todo riappare.
 
 Python è PID 1 e senza un handler ignora `SIGTERM`, quindi il riavvio aspettava i 30 secondi di grace. `the_project/todo-backend/main.py` esce su `SIGTERM`.
+
+## Esercizio 4.3 — query Prometheus
+
+Prometheus è il release Helm `prom` del chart `prometheus-community/prometheus`, namespace `monitoring`, con i values del capitolo sul monitoring. Nello stesso namespace ci sono anche Grafana e Loki. La GUI si apre dal Service:
+
+```bash
+kubectl port-forward svc/prom-prometheus-server -n monitoring 9090:80
+```
+
+Poi http://localhost:9090.
+
+`kube_pod_info` vale 1 per ogni pod. Il selettore tiene solo i pod del namespace `prometheus` creati da uno StatefulSet. `sum` somma quegli 1, quindi il risultato è il numero di pod. Lo screenshot del corso è proprio quel `sum`, e il valore è 3. Documentazione: https://prometheus.io/docs/prometheus/latest/querying/basics/
+
+```promql
+sum(kube_pod_info{namespace="prometheus",created_by_kind="StatefulSet"})
+```
+
+Sul cluster la query restituisce `3`. Le tre serie sono `counted-0`, `counted-1`, `counted-2`. Il chart del capitolo sta in `monitoring` e non crea StatefulSet in `prometheus`, quindi quei tre pod sono `exercises/4.3/statefulset.yaml`.
+
+Il Rollout canary è `exercises/4.3/rollout.yaml`: `flaky-update-dep`, immagine `mluukkai/dwk-app8:v1`, Service `flaky-update-svc` ClusterIP. L'immagine ha solo il manifest linux/amd64. I nodi k3d sono arm64, i pod restano in `ImagePullBackOff`.
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0
