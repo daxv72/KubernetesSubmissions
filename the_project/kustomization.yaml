@@ -12,6 +12,11 @@ resources:
   - todo-backend/manifests/postgres.yaml
   - todo-backend/manifests/deployment.yaml
   - todo-backend/manifests/service.yaml
+  - broadcaster/manifests/configmap.yaml
+  - broadcaster/manifests/deployment.yaml
+  - webhook/manifests/configmap.yaml
+  - webhook/manifests/deployment.yaml
+  - webhook/manifests/service.yaml
   - read-wikipedia/manifests/configmap.yaml
   - read-wikipedia/manifests/cronjob.yaml
   - backup/configmap.yaml
@@ -20,7 +25,11 @@ images:
   - name: todo-app
     newTag: "4.5"
   - name: todo-backend
-    newTag: "4.5"
+    newTag: "4.6"
+  - name: todo-broadcaster
+    newTag: "4.6"
+  - name: todo-webhook
+    newTag: "4.6"
   - name: read-wikipedia
     newTag: "2.9"
   - name: todo-backup

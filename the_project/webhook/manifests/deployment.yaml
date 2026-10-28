@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-webhook
+  namespace: project
+  labels:
+    app: todo-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-webhook
+  template:
+    metadata:
+      labels:
+        app: todo-webhook
+    spec:
+      containers:
+        - name: todo-webhook
+          image: todo-webhook:4.6
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: todo-webhook-config
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi

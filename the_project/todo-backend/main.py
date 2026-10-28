@@ -1,6 +1,9 @@
 """Todo backend — exercise 2.10, health check from 4.2, done field from 4.5.
 
 GET and POST for the todo list. PUT /todos/<id> sets the done field.
+A saved or updated todo is also published to NATS. The broadcaster
+forwards that message. A missing NATS publish does not fail the request.
+
 The path, port, length limit, and database address come from environment
 variables. The list is stored in Postgres. Every POST is printed to stdout
 so Loki can show it.
@@ -10,13 +13,16 @@ Postgres answers SELECT 1. POST /break clears the flag. The liveness
 probe then restarts the container, and the new process starts healthy.
 """
 
+import asyncio
 import json
 import os
 import signal
+import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import nats
 import pg8000.native
 
 
@@ -40,6 +46,8 @@ PGPORT = int(required("PGPORT"))
 POSTGRES_USER = required("POSTGRES_USER")
 POSTGRES_PASSWORD = required("POSTGRES_PASSWORD")
 POSTGRES_DB = required("POSTGRES_DB")
+NATS_URL = required("NATS_URL")
+NATS_SUBJECT = required("NATS_SUBJECT")
 
 # Seed matches the list shown before this exercise. Inserted only when the table is empty.
 SEED = (
@@ -51,6 +59,8 @@ SEED = (
 connection: pg8000.native.Connection | None = None
 # Cleared by POST /break. A restarted process loads this as True again.
 is_healthy = True
+_nats_loop: asyncio.AbstractEventLoop | None = None
+_nats_client: nats.NATS | None = None
 
 
 def connect() -> pg8000.native.Connection:
@@ -138,8 +148,68 @@ def list_todos() -> list[dict]:
     return [todo_row(row) for row in rows]
 
 
-def add_todo(text: str) -> None:
-    query("INSERT INTO todos (content) VALUES (:content)", content=text)
+def add_todo(text: str) -> dict:
+    rows = query(
+        """
+        INSERT INTO todos (content)
+        VALUES (:content)
+        RETURNING id, content, done
+        """,
+        content=text,
+    )
+    return todo_row(rows[0])
+
+
+def start_nats() -> None:
+    """One connection on a background loop. The HTTP thread publishes onto it."""
+    global _nats_loop
+    _nats_loop = asyncio.new_event_loop()
+    threading.Thread(target=_nats_loop.run_forever, name="nats", daemon=True).start()
+    asyncio.run_coroutine_threadsafe(_connect_nats(), _nats_loop)
+
+
+async def _connect_nats() -> None:
+    global _nats_client
+    while True:
+        try:
+            _nats_client = await nats.connect(NATS_URL)
+            print(f"Connected to NATS at {NATS_URL}", flush=True)
+            return
+        except Exception as error:
+            print(f"Waiting for NATS at {NATS_URL}: {error}", flush=True)
+            await asyncio.sleep(2)
+
+
+async def _publish(action: str, item: dict) -> None:
+    if _nats_client is None or not _nats_client.is_connected:
+        raise ConnectionError("NATS is not connected")
+    payload = json.dumps(
+        {
+            "action": action,
+            "id": item["id"],
+            "todo": item["todo"],
+            "done": item["done"],
+        }
+    ).encode()
+    await _nats_client.publish(NATS_SUBJECT, payload)
+    await _nats_client.flush()
+
+
+def publish_todo(action: str, item: dict) -> None:
+    # The todo is already stored. A failed publish is logged and ignored.
+    if _nats_loop is None:
+        print(f"NATS publish skipped action={action} id={item['id']}", flush=True)
+        return
+    future = asyncio.run_coroutine_threadsafe(_publish(action, item), _nats_loop)
+    try:
+        future.result(timeout=2)
+    except Exception as error:
+        print(
+            f"NATS publish skipped action={action} id={item['id']}: {error}",
+            flush=True,
+        )
+        return
+    print(f"todo published action={action} id={item['id']}", flush=True)
 
 
 def set_done(todo_id: int, done: bool) -> dict | None:
@@ -259,7 +329,8 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         log_todo("accepted", todo)
-        add_todo(todo)
+        stored = add_todo(todo)
+        publish_todo("created", stored)
         # The browser form posts here. Send the user back to the HTML page.
         self.send_response(303)
         self.send_header("Location", REDIRECT_URL)
@@ -290,6 +361,7 @@ class Handler(BaseHTTPRequestHandler):
             f"todo done id={updated['id']} value={str(updated['done']).lower()}",
             flush=True,
         )
+        publish_todo("updated", updated)
         self.send_json(200, json.dumps(updated).encode())
 
     def log_message(self, fmt: str, *args) -> None:
@@ -305,6 +377,7 @@ def stop(_signum: int, _frame: object) -> None:
 def main() -> None:
     global connection
     signal.signal(signal.SIGTERM, stop)
+    start_nats()
     connection = connect()
     ensure_table(connection)
     print(f"Server started in port {PORT}", flush=True)

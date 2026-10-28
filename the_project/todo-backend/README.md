@@ -6,6 +6,8 @@ Exercise 2.10. The process runs in the namespace `project`. Ports, the todo path
 - `POST /todos` appends one todo with `done` false. The body is form field `todo` or JSON `{"todo": "..."}`. Empty text and text longer than 140 characters are rejected. A successful form post redirects to `/`.
 - `PUT /todos/<id>` sets the done field. The body is JSON `{"done": true}` or `{"done": false}`. An empty body sets `done` to true. A missing id returns 404.
 
+A successful save and a successful update also publish `{"action", "id", "todo", "done"}` to the NATS subject in `NATS_SUBJECT`.
+
 The Service port is `2345`. The container listens on `3000`. Todo-app calls `http://todo-backend:2345/todos` from inside the cluster. The browser posts to `/todos` through the Ingress in `the_project/todo-app`.
 
 ## Kubernetes

@@ -14,3 +14,5 @@ data:
   BREAK_PATH: /break
   PGHOST: postgres
   PGPORT: "5432"
+  NATS_URL: nats://my-nats.nats.svc.cluster.local:4222
+  NATS_SUBJECT: todos

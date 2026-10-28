@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-broadcaster-config
+  namespace: project
+data:
+  NATS_URL: nats://my-nats.nats.svc.cluster.local:4222
+  NATS_SUBJECT: todos
+  # Shared by every replica. NATS delivers each message to one of them.
+  NATS_QUEUE: broadcasters
+  WEBHOOK_URL: http://todo-webhook:8080/
+  WEBHOOK_USER: bot

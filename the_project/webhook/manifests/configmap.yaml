@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-webhook-config
+  namespace: project
+data:
+  PORT: "8080"
+  BIND_ADDRESS: 0.0.0.0

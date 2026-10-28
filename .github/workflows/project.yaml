@@ -60,6 +60,8 @@ jobs:
           echo "TODO_BACKEND_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-backend:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
           echo "READ_WIKIPEDIA_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/read-wikipedia:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
           echo "TODO_BACKUP_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-backup:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "TODO_BROADCASTER_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-broadcaster:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "TODO_WEBHOOK_TAG=$REGISTRY/$PROJECT_ID/$REPOSITORY/todo-webhook:$BRANCH-$GITHUB_SHA" >> "$GITHUB_ENV"
 
       - name: Build
         run: |
@@ -67,6 +69,8 @@ jobs:
           docker build --tag "$TODO_BACKEND_TAG" the_project/todo-backend
           docker build --tag "$READ_WIKIPEDIA_TAG" the_project/read-wikipedia
           docker build --tag "$TODO_BACKUP_TAG" the_project/backup
+          docker build --tag "$TODO_BROADCASTER_TAG" the_project/broadcaster
+          docker build --tag "$TODO_WEBHOOK_TAG" the_project/webhook
 
       - name: Publish
         run: |
@@ -74,6 +78,8 @@ jobs:
           docker push "$TODO_BACKEND_TAG"
           docker push "$READ_WIKIPEDIA_TAG"
           docker push "$TODO_BACKUP_TAG"
+          docker push "$TODO_BROADCASTER_TAG"
+          docker push "$TODO_WEBHOOK_TAG"
 
       - name: Set up Kustomize
         uses: imranismail/setup-kustomize@v3
@@ -88,8 +94,12 @@ jobs:
             todo-app="$TODO_APP_TAG" \
             todo-backend="$TODO_BACKEND_TAG" \
             read-wikipedia="$READ_WIKIPEDIA_TAG" \
-            todo-backup="$TODO_BACKUP_TAG"
+            todo-backup="$TODO_BACKUP_TAG" \
+            todo-broadcaster="$TODO_BROADCASTER_TAG" \
+            todo-webhook="$TODO_WEBHOOK_TAG"
           kustomize build . | kubectl apply -f -
           kubectl rollout status deployment/todo-app -n "$NAMESPACE"
           kubectl rollout status deployment/todo-backend -n "$NAMESPACE"
           kubectl rollout status statefulset/postgres -n "$NAMESPACE"
+          kubectl rollout status deployment/todo-broadcaster -n "$NAMESPACE"
+          kubectl rollout status deployment/todo-webhook -n "$NAMESPACE"

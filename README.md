@@ -61,6 +61,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [4.3.](https://github.com/daxv72/KubernetesSubmissions/tree/4.3/exercises/4.3)
 - [4.4.](https://github.com/daxv72/KubernetesSubmissions/tree/4.4/exercises/4.4)
 - [4.5.](https://github.com/daxv72/KubernetesSubmissions/tree/4.5/the_project)
+- [4.6.](https://github.com/daxv72/KubernetesSubmissions/tree/4.6/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1122,6 +1123,29 @@ kubectl port-forward -n project svc/todo-app 18080:3000
 ```
 
 Poi http://localhost:18080/. Un click su `Mark done` lascia il todo barrato anche dopo un reload.
+
+## Esercizio 4.6 — broadcaster
+
+NATS è il release Helm `my-nats` nel namespace `nats`, chart `nats/nats` 2.15.1. Il client è `nats://my-nats.nats.svc.cluster.local:4222`. Il sidecar `prom-exporter` ascolta sulla porta `7777`. Prometheus, release `prom`, legge quel target con lo scrape job `nats` aggiunto in `monitoring/manifests/prom-values.yaml`.
+
+Il backend pubblica su subject `todos` quando salva un todo e quando lo aggiorna. Il corpo è `{"action":"created"|"updated","id":1,"todo":"...","done":false}`. Se NATS non risponde, la richiesta HTTP resta valida e il publish viene solo scritto nel log.
+
+Il Deployment `todo-broadcaster` ha 6 repliche. Tutte sottoscrivono lo stesso queue group `broadcasters`. Core NATS consegna ogni messaggio a un solo membro, quindi lo stato non esce due volte. Il broadcaster fa POST su `WEBHOOK_URL` con `{"user":"bot","message":"A todo was created: ..."}` oppure `A todo was updated`. L'URL di default è il Service `todo-webhook`, che stampa il JSON. Per usare un altro endpoint generico basta cambiare `WEBHOOK_URL`.
+
+Immagini locali `todo-backend:4.6`, `todo-broadcaster:4.6` e `todo-webhook:4.6`. Sul cluster k3d:
+
+```bash
+docker build -t todo-backend:4.6 the_project/todo-backend
+docker build -t todo-broadcaster:4.6 the_project/broadcaster
+docker build -t todo-webhook:4.6 the_project/webhook
+k3d image import todo-backend:4.6 -c k3s-default
+k3d image import todo-broadcaster:4.6 -c k3s-default
+k3d image import todo-webhook:4.6 -c k3s-default
+kubectl apply -k the_project
+kubectl logs -n project deploy/todo-webhook
+```
+
+Una creazione e un aggiornamento producono due righe nel webhook, e una sola riga `Forwarded` tra le sei repliche.
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0
