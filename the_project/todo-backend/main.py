@@ -1,12 +1,17 @@
-"""Todo backend — exercise 2.10.
+"""Todo backend — exercise 2.10, health check from exercise 4.2.
 
 GET and POST for the todo list. The path, port, length limit, and
 database address come from environment variables. The list is stored
 in Postgres. Every POST is printed to stdout so Loki can show it.
+
+GET /healthz returns 200 only when the in-memory flag is healthy and
+Postgres answers SELECT 1. POST /break clears the flag. The liveness
+probe then restarts the container, and the new process starts healthy.
 """
 
 import json
 import os
+import signal
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -27,6 +32,8 @@ MAX_LENGTH = int(required("MAX_LENGTH"))
 TODO_PATH = required("TODO_PATH")
 TODO_FIELD = required("TODO_FIELD")
 REDIRECT_URL = required("REDIRECT_URL")
+HEALTH_PATH = required("HEALTH_PATH")
+BREAK_PATH = required("BREAK_PATH")
 PGHOST = required("PGHOST")
 PGPORT = int(required("PGPORT"))
 POSTGRES_USER = required("POSTGRES_USER")
@@ -41,6 +48,8 @@ SEED = (
 )
 
 connection: pg8000.native.Connection | None = None
+# Cleared by POST /break. A restarted process loads this as True again.
+is_healthy = True
 
 
 def connect() -> pg8000.native.Connection:
@@ -93,6 +102,27 @@ def query(sql: str, **params):
         return connection.run(sql, **params)
 
 
+def database_ok() -> bool:
+    """One SELECT 1. A failure returns immediately and does not retry."""
+    global connection
+    try:
+        if connection is None:
+            connection = pg8000.native.Connection(
+                POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                host=PGHOST,
+                port=PGPORT,
+                database=POSTGRES_DB,
+                timeout=2,
+            )
+        connection.run("SELECT 1")
+        return True
+    except Exception as error:
+        print(f"Database health check failed: {error}", flush=True)
+        connection = None
+        return False
+
+
 def list_todos() -> list[str]:
     rows = query("SELECT content FROM todos ORDER BY id")
     return [str(row[0]) for row in rows]
@@ -126,8 +156,21 @@ def log_todo(decision: str, text: str) -> None:
 
 
 class Handler(BaseHTTPRequestHandler):
+    def send_json(self, status: int, body: bytes) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        if path == HEALTH_PATH:
+            if not is_healthy or not database_ok():
+                self.send_json(500, b'{"status":"unhealthy"}')
+                return
+            self.send_json(200, b'{"status":"ok"}')
+            return
         if path != TODO_PATH:
             self.send_error(404)
             return
@@ -139,7 +182,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self) -> None:
+        global is_healthy
         path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        if path == BREAK_PATH:
+            is_healthy = False
+            print("Health set to unhealthy", flush=True)
+            self.send_response(204)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if path != TODO_PATH:
             self.send_error(404)
             return
@@ -176,8 +227,15 @@ class Handler(BaseHTTPRequestHandler):
         print(f"{self.address_string()} {fmt % args}", flush=True)
 
 
+def stop(_signum: int, _frame: object) -> None:
+    # PID 1 ignores SIGTERM unless a handler is set. Exit so the restart is not
+    # stuck for the 30 second grace period.
+    raise SystemExit(0)
+
+
 def main() -> None:
     global connection
+    signal.signal(signal.SIGTERM, stop)
     connection = connect()
     ensure_table(connection)
     print(f"Server started in port {PORT}", flush=True)

@@ -57,6 +57,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 ### Update strategies
 
 - [4.1.](https://github.com/daxv72/KubernetesSubmissions/tree/4.1/exercises/4.1)
+- [4.2.](https://github.com/daxv72/KubernetesSubmissions/tree/4.2/the_project)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1040,6 +1041,29 @@ kubectl get po -n exercises
 ```
 
 Ping-pong passa a `1/1` e Log output a `2/2`.
+
+## Esercizio 4.2 — health check e riavvio
+
+Il backend espone `GET /healthz`. Risponde `200` con `{"status":"ok"}` solo se il flag in memoria è sano e `SELECT 1` su Postgres riesce. Altrimenti risponde `500`. `POST /break` spegne il flag. Il processo nuovo lo riaccende.
+
+Sul Deployment `todo-backend` ci sono tre probe sullo stesso path. La startup copre l'attesa di Postgres. La readiness toglie il Pod dal Service. La liveness, dopo tre risposte `500` ogni 5 secondi, fa ripartire il container. Il nome del Pod resta, `RESTARTS` sale. È il comportamento della liveness probe: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+
+La pagina ha il bottone `break the app`. Il click chiama il backend e, finché `/healthz` non torna `200`, mostra System Failure e si ricarica da sola. I todo restano nel database.
+
+Immagini locali `todo-app:4.2` e `todo-backend:4.2`. Sul cluster k3d, non su GKE:
+
+```bash
+docker build -t todo-backend:4.2 the_project/todo-backend
+docker build -t todo-app:4.2 the_project/todo-app
+k3d image import todo-backend:4.2 -c k3s-default
+k3d image import todo-app:4.2 -c k3s-default
+kubectl apply -k the_project
+kubectl port-forward -n project svc/todo-app 18080:3000
+```
+
+Dopo il click, kubelet registra `Liveness probe failed: HTTP probe failed with statuscode: 500` e `Container todo-backend failed liveness probe, will be restarted`. Il Pod torna `1/1` con `RESTARTS` a 1 e la pagina dei todo riappare.
+
+Python è PID 1 e senza un handler ignora `SIGTERM`, quindi il riavvio aspettava i 30 secondi di grace. `the_project/todo-backend/main.py` esce su `SIGTERM`.
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0

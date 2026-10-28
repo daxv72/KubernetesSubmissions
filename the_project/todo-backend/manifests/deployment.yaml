@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: todo-backend
-          image: todo-backend:2.10
+          image: todo-backend:4.2
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
@@ -27,6 +27,29 @@ spec:
           ports:
             - name: http
               containerPort: 3000
+          # /healthz is 200 only when the flag is set and Postgres answers.
+          # The startup probe covers the wait for Postgres. After that, three
+          # failed liveness checks restart the container. The new process is healthy.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
           # Idle on k3d: 3m CPU, 23Mi. The memory limit covers a request to Postgres.
           resources:
             requests:

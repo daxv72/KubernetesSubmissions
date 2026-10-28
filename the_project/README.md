@@ -63,3 +63,11 @@ textPayload:"todo accepted"
 The backend prints `todo accepted length=... text=...` for each stored todo. The picture is that stdout from the local cluster after creating `3.12 created from the cluster`. Monitoring was not enabled on a paid Google project. The same line is what GKE would store. See [View GKE logs](https://cloud.google.com/kubernetes-engine/docs/how-to/view-logs).
 
 ![Log when a todo is created](todo-created-log.png)
+
+## Exercise 4.2 — health check
+
+`GET /healthz` returns 200 `{"status":"ok"}` only when the in-memory flag is set and `SELECT 1` succeeds. `POST /break` clears the flag. The button on the todo page calls that route. Until `/healthz` is 200 again, the page is System Failure and reloads itself. The todos stay in Postgres.
+
+The backend Deployment probes `/healthz`. The startup probe covers the wait for Postgres. The readiness probe removes the Pod from the Service. After three 500 responses, five seconds apart, the liveness probe restarts the container. The Pod keeps its name and `RESTARTS` increases. A new process starts with the flag set. See [configure liveness, readiness and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/).
+
+The process is PID 1, so it exits on `SIGTERM` instead of waiting out the 30 second grace period. Images are `todo-app:4.2` and `todo-backend:4.2`.

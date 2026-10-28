@@ -1,7 +1,10 @@
-"""Todo app — exercise 2.6.
+"""Todo app — exercise 2.6, break button from exercise 4.2.
 
 GET / is an HTML page with a picture and the todo list from todo-backend.
 Ports, URLs, and the other settings come from environment variables.
+
+POST /break tells the backend to fail /healthz. Until that endpoint
+returns 200 again, GET / is the System Failure page.
 """
 
 import html
@@ -30,6 +33,9 @@ IMAGE_ROUTE = required("IMAGE_ROUTE")
 FORM_ACTION = required("FORM_ACTION")
 TODO_FIELD = required("TODO_FIELD")
 MAX_LENGTH = required("MAX_LENGTH")
+BREAK_PATH = required("BREAK_PATH")
+BACKEND_HEALTH_URL = required("BACKEND_HEALTH_URL")
+BACKEND_BREAK_URL = required("BACKEND_BREAK_URL")
 
 IMAGE_PATH = os.path.join(IMAGE_DIR, required("IMAGE_FILE"))
 META_PATH = os.path.join(IMAGE_DIR, required("META_FILE"))
@@ -84,6 +90,25 @@ def ensure_image() -> None:
     download()
 
 
+def backend_healthy() -> bool:
+    try:
+        with urllib.request.urlopen(BACKEND_HEALTH_URL, timeout=2) as response:
+            return response.status == 200
+    except urllib.error.HTTPError:
+        return False
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+def mark_unhealthy() -> None:
+    request = urllib.request.Request(BACKEND_BREAK_URL, data=b"", method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=2) as response:
+            response.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        print(f"Break request failed: {error}", flush=True)
+
+
 def fetch_todos() -> list[str]:
     # Service DNS name. The browser does not call this URL.
     try:
@@ -124,7 +149,7 @@ def html_page(todos: list[str]) -> bytes:
       width: min(220px, 70vw);
       border-radius: 12px;
     }
-    form {
+    form.composer {
       display: flex;
       justify-content: center;
       gap: 0.75rem;
@@ -147,6 +172,14 @@ def html_page(todos: list[str]) -> bytes:
       border-radius: 4px;
       padding: 0.7rem 1.4rem;
       cursor: pointer;
+    }
+    form.break {
+      margin-top: 1.6rem;
+    }
+    button.break {
+      background: #e57373;
+      border-radius: 6px;
+      padding: 0.65rem 1.15rem;
     }
     h2 {
       font-size: 1.7rem;
@@ -172,7 +205,7 @@ def html_page(todos: list[str]) -> bytes:
 <body>
   <h1>Todo App</h1>
   <img src="__IMAGE_ROUTE__" alt="Cached picture">
-  <form action="__FORM_ACTION__" method="post">
+  <form class="composer" action="__FORM_ACTION__" method="post">
     <input type="text" name="__TODO_FIELD__" maxlength="__MAX_LENGTH__" required placeholder="Enter a new todo (max __MAX_LENGTH__ characters)" aria-label="New todo">
     <button type="submit">Send</button>
   </form>
@@ -180,6 +213,9 @@ def html_page(todos: list[str]) -> bytes:
   <ul>
 __TODO_ITEMS__
   </ul>
+  <form class="break" action="__BREAK_PATH__" method="post">
+    <button class="break" type="submit">break the app</button>
+  </form>
 </body>
 </html>
 """.replace("__TODO_ITEMS__", items).replace(
@@ -188,15 +224,75 @@ __TODO_ITEMS__
         "__FORM_ACTION__", html.escape(FORM_ACTION, quote=True)
     ).replace("__TODO_FIELD__", html.escape(TODO_FIELD, quote=True)).replace(
         "__MAX_LENGTH__", html.escape(MAX_LENGTH, quote=True)
-    ).encode()
+    ).replace("__BREAK_PATH__", html.escape(BREAK_PATH, quote=True)).encode()
+
+
+def failure_page() -> bytes:
+    # Reloads until the restarted backend answers /healthz again.
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="2">
+  <title>System Failure</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #fff7f7;
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+    main {
+      border: 1px solid #f0c4c4;
+      border-radius: 16px;
+      padding: 2.4rem 2.8rem;
+      max-width: 720px;
+    }
+    h1 {
+      color: #8f2424;
+      font-size: 2.6rem;
+      font-weight: 700;
+      margin: 0 0 0.8rem;
+    }
+    p {
+      color: #8f2424;
+      font-size: 1.15rem;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>System Failure</h1>
+    <p>The Todo App is currently unhealthy. Please wait for recovery.</p>
+  </main>
+</body>
+</html>
+""".encode()
 
 
 class Handler(BaseHTTPRequestHandler):
+    def send_html(self, body: bytes) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self) -> None:
         path = self.path.split("?", 1)[0]
         if path == "/":
-            body = html_page(fetch_todos())
-            content_type = "text/html; charset=utf-8"
+            if not backend_healthy():
+                self.send_html(failure_page())
+                return
+            self.send_html(html_page(fetch_todos()))
+            return
         elif path == IMAGE_ROUTE:
             ensure_image()
             with open(IMAGE_PATH, "rb") as handle:
@@ -210,6 +306,20 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_POST(self) -> None:
+        path = self.path.split("?", 1)[0]
+        length = int(self.headers.get("Content-Length", "0"))
+        if length:
+            self.rfile.read(length)
+        if path != BREAK_PATH:
+            self.send_error(404)
+            return
+        mark_unhealthy()
+        self.send_response(303)
+        self.send_header("Location", "/")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def log_message(self, fmt: str, *args) -> None:
         print(f"{self.address_string()} {fmt % args}", flush=True)

@@ -10,5 +10,7 @@ data:
   TODO_PATH: /todos
   TODO_FIELD: todo
   REDIRECT_URL: /
+  HEALTH_PATH: /healthz
+  BREAK_PATH: /break
   PGHOST: postgres
   PGPORT: "5432"
