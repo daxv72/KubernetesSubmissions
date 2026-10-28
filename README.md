@@ -63,6 +63,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [4.5.](https://github.com/daxv72/KubernetesSubmissions/tree/4.5/the_project)
 - [4.6.](https://github.com/daxv72/KubernetesSubmissions/tree/4.6/the_project)
 - [4.7.](https://github.com/daxv72/KubernetesSubmissions/tree/4.7/exercises/4.7)
+- [4.8.](https://github.com/daxv72/KubernetesSubmissions/tree/4.8/exercises/4.8)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1159,7 +1160,20 @@ kubectl apply -f exercises/4.7/application.yaml
 kubectl get application -n argocd log-output
 ```
 
-Finché `exercises/4.7/manifests` non è su `main`, lo stato è un errore di confronto. Il Deployment già nel cluster non viene toccato.
+Il commit `8c702f9` è su `main`. L'Application è `Synced` e il Pod ha `dwk.mooc.fi/release=4.7`.
+
+## Esercizio 4.8 — GitOps per il progetto
+
+Argo CD legge `main` di https://github.com/daxv72/KubernetesSubmissions.git, percorso `the_project`. Lì c'è un `kustomization.yaml`, quindi il controller fa il build con Kustomize e applica il risultato nel namespace `project`. Il sync è automatico, con prune e self-heal. Un commit su `main` che cambia `the_project` aggiorna il cluster. Il controller controlla il repository circa ogni tre minuti. Per questo esercizio basta il branch `main`.
+
+Questo cluster è k3d, quindi l'Application usa la base `the_project` e non `overlays/gke`. L'overlay toglie la storage class e mette due Service in NodePort, ed è la variante per GKE.
+
+```bash
+kubectl apply -f exercises/4.8/application.yaml
+kubectl get application -n argocd project
+```
+
+`the_project` è già su `main`, quindi il primo sync non aspetta il push di `exercises/4.8`.
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0

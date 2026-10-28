@@ -1,0 +1,23 @@
+# Argo CD watches main and applies the_project with Kustomize.
+# A commit on main updates the namespace project. One branch is enough.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: project
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/daxv72/KubernetesSubmissions.git
+    targetRevision: main
+    path: the_project
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: project
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
