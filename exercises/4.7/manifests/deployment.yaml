@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-output
+  namespace: exercises
+  labels:
+    app: log-output
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-output
+  template:
+    metadata:
+      labels:
+        app: log-output
+      annotations:
+        # GitOps release marker. A new value rolls the Pod on the next sync.
+        dwk.mooc.fi/release: "4.7"
+    spec:
+      # fsGroup lets USER nobody write the emptyDir.
+      securityContext:
+        fsGroup: 65534
+      volumes:
+        # Log line only. The ping count is no longer a file shared with ping-pong.
+        - name: shared-log
+          emptyDir: {}
+        # Only the file key. MESSAGE is an environment variable, not a second file.
+        - name: information
+          configMap:
+            name: log-output-config
+            items:
+              - key: information.txt
+                path: information.txt
+      containers:
+        - name: log-writer
+          image: log-writer:1.11
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_PATH
+              value: /usr/src/app/files/log.txt
+          volumeMounts:
+            - name: shared-log
+              mountPath: /usr/src/app/files
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+        - name: log-reader
+          image: log-reader:2.5
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "3000"
+            - name: LOG_PATH
+              value: /usr/src/app/files/log.txt
+            - name: PING_PONG_URL
+              value: http://ping-pong:3000/pings
+            - name: INFO_PATH
+              value: /usr/src/app/config/information.txt
+            - name: MESSAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: log-output-config
+                  key: MESSAGE
+          ports:
+            - name: http
+              containerPort: 3000
+          # Ready only when Ping-pong returns the counter. The writer has no
+          # probe, so the Pod stays 1/2 until this check passes.
+          # urllib hangs on this cluster; a short TCP client does not.
+          # The first SYN to a ClusterIP is often dropped, so allow 5s.
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - |
+                  import socket
+                  sock = socket.create_connection(("ping-pong", 3000), 5)
+                  sock.settimeout(5)
+                  sock.sendall(b"GET /pings HTTP/1.0\r\nHost: ping-pong\r\n\r\n")
+                  data = sock.recv(64)
+                  sock.close()
+                  if b" 200 " not in data:
+                      raise SystemExit(1)
+            periodSeconds: 20
+            timeoutSeconds: 15
+          volumeMounts:
+            - name: shared-log
+              mountPath: /usr/src/app/files
+            - name: information
+              mountPath: /usr/src/app/config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi

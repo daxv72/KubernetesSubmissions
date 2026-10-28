@@ -1,0 +1,23 @@
+# Argo CD watches main. A commit that changes exercises/4.7/manifests
+# is applied in the namespace exercises. The controller polls the repository.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: log-output
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/daxv72/KubernetesSubmissions.git
+    targetRevision: main
+    path: exercises/4.7/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: exercises
+  syncPolicy:
+    automated:
+      enabled: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -62,6 +62,7 @@ Definizioni, link alla documentazione e spiegazione dei comandi kubectl: [TEORIA
 - [4.4.](https://github.com/daxv72/KubernetesSubmissions/tree/4.4/exercises/4.4)
 - [4.5.](https://github.com/daxv72/KubernetesSubmissions/tree/4.5/the_project)
 - [4.6.](https://github.com/daxv72/KubernetesSubmissions/tree/4.6/the_project)
+- [4.7.](https://github.com/daxv72/KubernetesSubmissions/tree/4.7/exercises/4.7)
 
 ## Comandi usati per l'esercizio 1.1
 
@@ -1146,6 +1147,19 @@ kubectl logs -n project deploy/todo-webhook
 ```
 
 Una creazione e un aggiornamento producono due righe nel webhook, e una sola riga `Forwarded` tra le sei repliche.
+
+## Esercizio 4.7 — GitOps per Log output
+
+Argo CD è nel namespace `argocd`. L'Application `log-output` legge `main` di https://github.com/daxv72/KubernetesSubmissions.git, percorso `exercises/4.7/manifests`, e applica quegli oggetti nel namespace `exercises`. Il sync è automatico, con prune e self-heal. Il controller controlla il repository circa ogni tre minuti. Un commit su quei manifest aggiorna il Deployment senza un `kubectl apply` fatto a mano.
+
+I manifest sono Log output com'è adesso: Deployment e Service dell'esercizio 1.3, ConfigMap dell'esercizio 2.5, Ingress con path `/`. L'annotazione del Pod `dwk.mooc.fi/release` vale `4.7`. Cambiarla fa ripartire il Pod al sync successivo. Le immagini restano `log-writer:1.11` e `log-reader:2.5`.
+
+```bash
+kubectl apply -f exercises/4.7/application.yaml
+kubectl get application -n argocd log-output
+```
+
+Finché `exercises/4.7/manifests` non è su `main`, lo stato è un errore di confronto. Il Deployment già nel cluster non viene toccato.
 
 # K3S con Gateway API ENVOY
 k3d cluster create --agents 2 -p 8081:80@loadbalancer --port 8082:30080@agent:0 --k3s-arg --disable=traefik@server:0
